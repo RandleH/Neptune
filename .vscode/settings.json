@@ -1,0 +1,4 @@
+{
+    "cmake.saveBeforeBuild": true,
+    "cmake.configureOnEdit": false
+}
