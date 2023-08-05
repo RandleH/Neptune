@@ -1,8 +1,11 @@
 
 # Ignored Folder
 build
+CMakeFiles
 
 
 # Ignored File
 .DS_Store
-
+CMakeCache.txt
+cmake_install.cmake
+Makefile
