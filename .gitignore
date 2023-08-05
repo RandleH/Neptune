@@ -1,0 +1,8 @@
+
+# Ignored Folder
+build
+
+
+# Ignored File
+.DS_Store
+
