@@ -11,5 +11,6 @@ rm -rf cmake_install.cmake
 rm -rf Makefile
 rm -rf build
 rm -rf CMakeFiles
+rm -rf model1.map
 
 
