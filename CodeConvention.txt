@@ -1,0 +1,415 @@
+/**
+  ******************************************************************************
+  * @file    template.txt
+  * @author  RandleH
+  * @brief   This file contains code template.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2022 RandleH.
+  * All rights reserved.
+  *
+  * This software component is licensed by RandleH under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
+
+/// Table
+/// ====================================================== 
+///  Screen Pin IO        | STM32 Pin IO | Peripheral
+/// ----------------------+--------------+----------------
+///  MOSI                 | PB15         | SPI
+/// ----------------------+--------------+----------------
+///  SCL                  | PB13         | SPI
+/// ----------------------+--------------+----------------
+///  CS                   | PB12         | GPIO
+/// ----------------------+--------------+----------------
+///  RES                  | PB8          | GPIO
+/// ----------------------+--------------+----------------
+///  DC                   | PB9          | GPIO
+/// ------------------------------------------------------
+
+/* CPP_FILE ------------------------------------------------------------------*/
+/* Includes ------------------------------------------------------------------*/
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+/* Private function prototypes -----------------------------------------------*/
+/* Private functions ---------------------------------------------------------*/
+/* Functions -----------------------------------------------------------------*/
+
+/* HPP_FILE ------------------------------------------------------------------*/
+/* Includes ------------------------------------------------------------------*/
+/* Exported types ------------------------------------------------------------*/
+/* Exported constants --------------------------------------------------------*/
+/* Exported macro ------------------------------------------------------------*/
+/* Exported functions --------------------------------------------------------*/
+/* Namespace -----------------------------------------------------------------*/
+
+/******************************************************************************/
+/* Important Notation                                                         */
+/* xxxxxxx xxxxxxx xxxxxxx xxxxxxx xxxxxxx xxxxxxx                            */
+/* xxxxxxx xxxxxxx xxxxxxxxxxxxxx xxxxxxx xxxxxxx                             */
+/* xxxxxx xxxxxx xxxxxxx xxxxxxx xxxxxxx                                      */
+/******************************************************************************/
+
+	
+#error "Please identifier your communication protocol."
+
+
+
+/** 
+ * @brief  Peripherals Clock function
+ * @param  (none)   
+ * @retval (none)
+*/
+static inline void __configClock(void){
+// #error "Please check this function and comment this line."	  
+#if !defined (USE_HAL_DRIVER)
+#else
+#endif
+}
+
+/**
+ * @brief  Module delay function
+ * @param  ms   Milliseconds
+ * @retval (none)
+*/
+static inline void __delay_ms( unsigned long ms){
+// #error "Please check this function and comment this line."	
+}
+
+/**
+ * @brief  Module delay function
+ * @param  us   Microseconds
+ * @retval (none)
+*/
+static inline void __delay_us( unsigned long us){
+// #error "Please check this function and comment this line."	
+}
+
+/**
+ * @brief  Hardware IO pin initialization for I2C
+ * @param  (none)
+ * @retval (none)
+*/
+static inline void __configI2C(void){
+
+}
+
+/**
+ * @brief  Function assertion
+ * @param  expr  Expected expression
+ * @retval (none)
+*/
+static inline void __assert(bool expr){
+
+}
+
+/**
+ * @brief  Hardware IO pin initialization for SPI 
+ * @param  (none)
+ * @retval (none)
+*/
+static inline void __configSPI(void){
+}
+
+/**
+ * @brief Write one byte to screen 
+ * @param addr Device i2c address
+ * @param data 8-bit raw data
+*/
+static void __writeByte(uint8_t addr,uint8_t data){
+
+}
+
+/** 
+ * @brief  Write 8-bit data to device
+ * @param  data
+ * @retval (none)
+*/
+static void __writeDat(uint8_t data){
+
+}
+
+/** 
+ * @brief  Write 8-bit command to device
+ * @param  cmd
+ * @retval (none)
+*/
+static void __writeCmd(uint8_t cmd){
+
+}
+
+
+#if (RH_MCU_TARGET==RH_MCU_TARGET__STM32F4)
+#else
+ #warning "TODO"
+#endif  
+
+
+#ifndef __cplusplus
+extern "C++"{
+#endif
+
+
+#ifndef __cplusplus
+}
+#endif
+
+
+
+
+#if (RH_CFG_APP_INIT_MODE==RH_CFG_APP_INIT_MODE__CONSTRUCTOR)
+/* Initialization will run before `main()` function */
+
+  /* Initializing List */
+  /* Function Begin */
+
+#elif (RH_CFG_APP_INIT_MODE==RH_CFG_APP_INIT_MODE__REALTIME)
+/* Initialization will run in the real time OS */
+  
+  /* Initializing Upper-Class */
+  /* Initializing Sub-Class */
+  /* Initializing parameters */
+  /* Function Begin */
+
+#else
+ #error "Please identify you application initialization method. Check `RH_CFG_APP_INIT_MODE` macro in `rh_config.h`."
+#endif
+
+
+
+
+/**
+ * @brief       This task is to switch clock widget style
+ * @param       (no use)
+ * @note        - Memory: 256 KB
+ *              - Period: Unblocked when ISR was triggled. See `app.resource.device.gpioA0.sema` semaphore lock
+ *              - priority: 50
+ *              - Killed by: (none)
+ * @related     @function
+ *                  
+ *              @var
+ *                  
+ * @category    Thread -> Static Task Component
+*/
+RH_STATIC void __task_230499( void*){
+    while(1){
+        xEventGroupWaitBits( app.resource.groupIO, APP_EVENT_GROUPIO__KEY_TRIGGERED, pdTRUE, pdFALSE, portMAX_DELAY);
+        app.gui.shovel();
+        app.gui.load();
+    }
+}
+
+
+
+
+
+/**
+ * @brief Main menu program
+ * @priority      30
+ * @stack         1024 bytes
+ * @exit          never
+*/
+void __task_117177( void*){
+/* Program Begin */
+
+    /* Enable necessary module */
+    watch.system.interrupt.enable( rh::isr::exti, 6);
+
+    /* Create block zone */    
+    {
+        /* Data Initialization */
+        u8 tmp = 0;
+
+        /* Visual Initialization */
+        rh::Menu ui_menu;
+        ui_menu.load();
+
+        /* Loop Body */
+        while(1){
+            u32 signal = watch.system.listen( rh::signal::keyA | rh::signal::keyB | rh::signal::keyC, -1);
+
+            if( signal & rh::signal::keyA){
+                tmp==0? tmp=5 : --tmp;
+                ui_menu.prev();
+            }else if( signal & rh::signal::keyC ){
+                tmp==5? tmp=0 : ++tmp;
+                ui_menu.next();
+            }else if( signal & rh::signal::keyB ){
+                TaskStack.push( xTaskGetCurrentTaskHandle() );
+
+                u8 ret=0;
+                switch( tmp ){
+                    default:{
+                        u32 s = xEventGroupGetBits( watch.system._eventDevice);
+                        TASK_CREATE( 292729, ret, 0);
+                    }
+
+                }
+                vTaskSuspend(NULL);
+                
+                ui_menu.load();
+            }
+            
+        }
+    }
+    
+    /* Disable necessary module */
+    watch.system.interrupt.disable( rh::isr::exti);
+    watch.system.resume();
+
+/* Program finished */
+    vTaskDelete(NULL);
+}
+
+
+
+
+
+/**
+ * @brief Clock Widget
+ * @priority      30
+ * @stack         1024 bytes
+ * @exit          never
+*/
+void __task_292729( void*){
+/* Program Begin */
+    vTaskDelay(500);
+
+    /* Enable necessary module */
+    watch.system.interrupt.enable( rh::isr::tim, 6);
+    watch.system.interrupt.enable( rh::isr::exti, 6);    
+    lv_obj_t *obj = lv_obj_create(NULL);
+    lv_scr_load( obj);
+    /* Loop Body */
+    // while(1){
+        
+    //     vTaskDelay(10);
+    // }
+
+    watch.system.listen( rh::signal::keyB, -1);
+    // lv_obj_del( obj);
+    vTaskResume( TaskStack.top());
+    vTaskDelete(NULL);
+}
+
+
+
+std::stack<TaskHandle_t>    TaskStack;
+
+
+void __task_292729( void*);
+#define RH_CFG_RTOS_TASK_292729__STATIC       0                             // < select > < 0=disable : 1=enable >
+#define RH_CFG_RTOS_TASK_292729__STACKSIZE    (2048)
+#define RH_CFG_RTOS_TASK_292729__PRIORITY     (40)
+
+
+
+
+void __task_117177( void*);
+#define RH_CFG_RTOS_TASK_117177__STATIC       1                             // < select > < 0=disable : 1=enable >
+#define RH_CFG_RTOS_TASK_117177__STACKSIZE    (1024)
+#define RH_CFG_RTOS_TASK_117177__PRIORITY     (30)
+#if RH_CFG_RTOS_TASK_117177__STATIC
+static std::pair<TaskHandle_t,StaticTask_t>       htcb_117177;       /*!< Screen Refreash */
+static StackType_t                                stak_117177[RH_CFG_RTOS_TASK_117177__STACKSIZE];
+#endif
+
+
+
+
+u32 signal = watch.system.listen( (rh::signal::keyA|rh::signal::keyB|rh::signal::keyC), portMAX_DELAY);
+
+            if( signal & rh::signal::keyB ){
+
+                //...//
+            }else if( signal & rh::signal::keyA ){
+
+                //...//
+            }else if( signal & rh::signal::keyC ){
+                //...//
+            }
+
+
+
+/**
+ * @brief This function will initialize the RTC module.
+ * @param reset  - If true, it will reset the power register. 
+ *                 It is recommanded to reset when it is the first time for target to run
+ * @retval  Retuan 0 if success.
+ *          Return 1 if LSI clock is failed to enable.
+ *          Return 2 if LSE clock is failed to enable. The LSE crystal may not be on the board.
+ *          Return 3 if RTC can not enter the initialization mode.
+*/
+int rh_rtc__init( bool reset, u16 yyyy, u8 mm, u8 dd, u8 hh, u8 min, u8 ss, u8 week ){
+
+    SET_BIT( RCC->APB1ENR, RCC_APB1ENR_PWREN );          // Enable backup power clock bus
+    SET_BIT( PWR->CR     , PWR_CR_DBP);                  // Disable backup domain write protection
+
+    SET_BIT( RCC->CSR   , RCC_CSR_LSION);                // Enable LSI clock bus
+    
+    {// Wait until success
+        u8 retry = 0xff;
+        while( retry-- && false==READ_BIT( RCC->CSR, RCC_CSR_LSIRDY) ); 
+        if( retry==0 ){
+            return 1;
+        }
+    }
+    
+    SET_BIT( RCC->BDCR  , RCC_BDCR_LSEON);               // Enable LSE clock bus
+
+    {// Wait until success
+        u8 retry = 0xff;
+        while( retry-- && false==READ_BIT( RCC->BDCR, RCC_BDCR_LSERDY ) );
+        if( retry==0 ){
+            return 2;
+        }
+    }
+
+    {// RTC clock source selection: Clear selection
+        u32 tmp = RCC->BDCR;
+        CLEAR_BIT( tmp, RCC_BDCR_RTCSEL_0 );             // [00]: No clock; [01]: LSE; [10]: LSI; [11]:HSE;
+        CLEAR_BIT( tmp, RCC_BDCR_RTCSEL_1 );
+        RCC->BDCR = tmp;
+    }
+
+    {// RTC clock source selection: LSE  selection
+        u32 tmp = RCC->BDCR;
+        SET_BIT  ( tmp, RCC_BDCR_RTCSEL_0 );     
+        CLEAR_BIT( tmp, RCC_BDCR_RTCSEL_1 );
+
+        SET_BIT  ( tmp, RCC_BDCR_RTCEN    );              // Enable RTC clock bus
+        RCC->BDCR = tmp;
+    }
+
+    __disableWriteProtection();
+    RTC->CR  = 0;                                         // Reset RTC control rigister
+    
+    if( !__enterInitMode() )                              // Enter initialization mode
+        return 3;
+
+
+    u32 pres_s=0xff, pres_a=0x7f;                         // Set synchronous/asynchronous prescaler factor
+    
+    RTC->PRER  = (u32)((0x7fff)&pres_s);                  // Frtc = Fclk/[(pres_s+1)*(pres_a+1)]
+    RTC->PRER |= (u32)(((0x7f)&pres_a)<<16);              // Fclk = 36.768 kHz
+
+    CLEAR_BIT( RTC->CR, RTC_CR_FMT);                      // 24 Hour Format
+    
+    __exitInitMode();
+    __enableWriteProtection();
+    
+    if( reset){
+        __setTime( hh, min, ss);
+        __setDate( yyyy, mm, dd, week);
+    }
+    
+    return 0;
+}
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/
