@@ -1,7 +1,8 @@
 
 
 # Ref: https://www.reddit.com/r/embedded/comments/qkcfjt/cmake_setup_for_project_with_stm32_how_to_switch/
-
+# Ref: https://gist.github.com/eugene-babichenko/3118042a23d2082bfba624f3f2039843
+# Ref: https://stackoverflow.com/questions/36122358/visual-studio-code-c-include-path
 
 cmake_minimum_required(VERSION 3.13)
 
@@ -47,6 +48,7 @@ include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Driv
                                         ${config_include})
 
 add_definitions( ${config_define})
+add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
 add_executable( ${PROJECT_NAME}         ${CMAKE_SOURCE_DIR}/main.c 
                                         ${startup_script}
