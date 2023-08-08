@@ -10,6 +10,8 @@ cmake_minimum_required(VERSION 3.13)
 # Tool Chain Setup
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/arm-gcc-toolchain.cmake)
 
+set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_DEFAULT_BUILD_TYPE Debug)
 
 # Project Setup
 project( model1 C CXX ASM)
@@ -34,8 +36,14 @@ set( startup_script ${CMAKE_SOURCE_DIR}/cfg/startup_stm32f411xe.S)
 set( cmsis_script   ${CMAKE_SOURCE_DIR}/cfg/system_stm32f4xx.c)
 
 set( config_include ${CMAKE_SOURCE_DIR}/cfg)
+set( lvgl_include   ${CMAKE_SOURCE_DIR}/lib/lvgl)
 
 set( config_define -DSTM32F411xE -DUSE_HAL_DRIVER)
+set( lvgl_define -DLV_USE_DEV_VERSION)
+
+set( LV_CONF_PATH   ${CMAKE_SOURCE_DIR}/cfg/lv_conf.h)
+add_subdirectory( lib/lvgl   ${CMAKE_SOURCE_DIR}/build/lvgl/build)
+
 
 set( cpu_params         -mcpu=cortex-m4
                         -mthumb
@@ -45,9 +53,10 @@ set( cpu_params         -mcpu=cortex-m4
 include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/Include
                                         ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/CMSIS/Core/Include
                                         ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc
-                                        ${config_include})
+                                        ${config_include}
+                                        ${lvgl_include})
 
-add_definitions( ${config_define})
+add_definitions( ${config_define} ${lvgl_define})
 add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
 add_executable( ${PROJECT_NAME}         ${CMAKE_SOURCE_DIR}/main.c 
@@ -65,16 +74,14 @@ target_compile_options( ${PROJECT_NAME} PRIVATE         ${cpu_params}
                                                         -Wall
                                                         $<$<CONFIG:Debug>:-Og>)
 
-target_link_options(${PROJECT_NAME} PRIVATE
-        -T${CMAKE_SOURCE_DIR}/cfg/STM32F411CEUX_FLASH.ld
-        ${cpu_params}
-        -specs=nano.specs
-        -lc
-        -lm
-        -lnosys
-        -Wl,-Map=${PROJECT_NAME}.map,--cref
-        -Wl,--gc-sections
-        )
+target_link_options(${PROJECT_NAME} PRIVATE             -T${CMAKE_SOURCE_DIR}/cfg/STM32F411CEUX_FLASH.ld
+                                                        ${cpu_params}
+                                                        -specs=nano.specs
+                                                        -lc
+                                                        -lm
+                                                        -lnosys
+                                                        -Wl,-Map=${PROJECT_NAME}.map,--cref
+                                                        -Wl,--gc-sections)
 
 set(HEX_FILE ${CMAKE_SOURCE_DIR}/build/${PROJECT_NAME}.hex)
 set(BIN_FILE ${CMAKE_SOURCE_DIR}/build/${PROJECT_NAME}.bin)
