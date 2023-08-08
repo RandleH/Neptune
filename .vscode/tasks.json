@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cmake",
+			"label": "CMake: build",
+			"command": "build",
+			"targets": [
+				"-S", "${workspaceFolder}",
+				"-B", "${workspaceFolder}/build"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"detail": "CMake template build task"
+		}
+	]
+}

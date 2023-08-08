@@ -7,7 +7,7 @@
         {
             "name": "Cortex Debug",
             "cwd": "${workspaceFolder}",
-            "executable": "./bin/executable.elf",
+            "executable": "${workspaceFolder}/build/model1",
             "request": "launch",
             "type": "cortex-debug",
             "runToEntryPoint": "main",
