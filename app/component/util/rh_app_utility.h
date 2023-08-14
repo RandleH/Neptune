@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * @file    main.c
+  * @file    rh_app_utility.h
   * @author  RandleH
-  * @brief   Main program entrance
+  * @brief   Utility Headfile (No dependency)
   ******************************************************************************
   * @attention
   *
@@ -17,12 +17,21 @@
   ******************************************************************************
   */
 
-#include "rh_app_utility.h"
 
-int main( int argc, char const *argv[]){
-    rh_util__zellerCalendarWeekday( 70, 1, 1);
-    while(1){
-        
-    }
-    return 0;
+#include "rh_common.h"
+
+
+#ifdef __cplusplus
+extern "C"{
+#endif
+
+u8 rh_util__zellerCalendarWeekday( u8 year, u8 month, u8 date);
+
+
+
+#ifdef __cplusplus
 }
+#endif
+
+
+
