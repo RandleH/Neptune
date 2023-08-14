@@ -13,6 +13,8 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/arm-gcc-toolchain.cmake)
 set(CMAKE_BUILD_TYPE Debug)
 # set(CMAKE_DEFAULT_BUILD_TYPE Debug)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Project Setup
 project( model1 C CXX ASM)
 
@@ -54,14 +56,33 @@ include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Driv
                                         ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/CMSIS/Core/Include
                                         ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc
                                         ${config_include}
-                                        ${lvgl_include})
+                                        ${lvgl_include}
+                                        ${CMAKE_SOURCE_DIR}
+                                        ${CMAKE_SOURCE_DIR}/app/component/cmn
+                                        ${CMAKE_SOURCE_DIR}/app/component/time
+                                        ${CMAKE_SOURCE_DIR}/app/component/util)
+
+aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/util    source_app_util)
+aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/time    source_app_time)
+aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/cmn     source_app_cmn)
+
+aux_source_directory( ${CMAKE_SOURCE_DIR}/bsp     source_bsp)
+
+
+
 
 add_definitions( ${config_define} ${lvgl_define})
 add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
+
+
 add_executable( ${PROJECT_NAME}         ${CMAKE_SOURCE_DIR}/main.c 
                                         ${startup_script}
-                                        ${cmsis_script})
+                                        ${cmsis_script}
+                                        ${source_app_util}
+                                        ${source_app_time}
+                                        ${source_app_cmn}
+                                        ${source_bsp})
 
 
 
