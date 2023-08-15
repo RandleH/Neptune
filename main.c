@@ -18,11 +18,22 @@
   */
 
 #include "rh_app_utility.h"
+#include "rh_bsp.h"
+
+#include "rh_cmn_clk.h"
 
 int main( int argc, char const *argv[]){
-    rh_util__zellerCalendarWeekday( 70, 1, 1);
-    while(1){
-        
-    }
-    return 0;
+
+  rh_cmn_clk__cpu( _96MHz);
+
+
+  rh_util__zellerCalendarWeekday( 70, 1, 1);
+
+  rh_bsp_key__init();
+
+  while(1){
+      
+  }
+  
+  return 0;
 }
