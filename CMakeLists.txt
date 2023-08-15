@@ -58,17 +58,16 @@ include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Driv
                                         ${config_include}
                                         ${lvgl_include}
                                         ${CMAKE_SOURCE_DIR}
-                                        ${CMAKE_SOURCE_DIR}/app/component/cmn
                                         ${CMAKE_SOURCE_DIR}/app/component/time
-                                        ${CMAKE_SOURCE_DIR}/app/component/util)
+                                        ${CMAKE_SOURCE_DIR}/app/component/util
+                                        ${CMAKE_SOURCE_DIR}/bsp
+                                        ${CMAKE_SOURCE_DIR}/cmn)
 
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/util    source_app_util)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/time    source_app_time)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/cmn     source_app_cmn)
-
 aux_source_directory( ${CMAKE_SOURCE_DIR}/bsp     source_bsp)
-
-
+aux_source_directory( ${CMAKE_SOURCE_DIR}/cmn     source_cmn)
+aux_source_directory( ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src  source_stm32hal)
 
 
 add_definitions( ${config_define} ${lvgl_define})
@@ -81,8 +80,9 @@ add_executable( ${PROJECT_NAME}         ${CMAKE_SOURCE_DIR}/main.c
                                         ${cmsis_script}
                                         ${source_app_util}
                                         ${source_app_time}
-                                        ${source_app_cmn}
-                                        ${source_bsp})
+                                        ${source_cmn}
+                                        ${source_bsp}
+                                        ${source_stm32hal})
 
 
 
