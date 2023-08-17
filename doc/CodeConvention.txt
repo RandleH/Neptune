@@ -60,6 +60,13 @@
 	
 #error "Please identifier your communication protocol."
 
+/** @defgroup Common 
+ *  Project Common Group
+ *  @{
+ */
+
+/** @} */ // end of Common
+
 
 
 /** 
