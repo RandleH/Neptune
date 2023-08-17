@@ -3,6 +3,8 @@
     "cmake.configureOnEdit": false,
     "files.associations": {
         "stm32f4xx.h": "c",
-        "stm32f411xe.h": "c"
+        "stm32f411xe.h": "c",
+        "rh_bsp_led.h": "c",
+        "rh_cmn_mem.h": "c"
     }
 }
