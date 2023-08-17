@@ -65,7 +65,7 @@ extern "C"{
 
 
 /* Private typedef -----------------------------------------------------------*/
-typedef struct BspKey_t{
+typedef struct BspKey{
   u32 raw;
 }BspKey_t;
 
@@ -78,15 +78,21 @@ typedef struct BspKey_t{
 
 
 /* Functions -----------------------------------------------------------------*/
+/** @defgroup BSP 
+ *  Board Support Package Group
+ *  @{
+ */
+
 
 /**
- * @addtogroup
- * 
- * @brief
- * @return
+ * @brief   Initialize key service
+ *          This function will NOT initialize the physical register
+ *          For initialization in physical layer, please use APIs in Common group
+ * @return  Return a valid pointer for key service if success
+ *          Return NULL if failed
 */
-pBspKey_t rh_bsp_key__init( void){
-  return NULL;
+pBspKey rh_bsp_key__init( void){
+    return NULL;
 }
 
 
@@ -94,68 +100,69 @@ pBspKey_t rh_bsp_key__init( void){
 
 
 /**
+ * @brief   Read whenther there is a key pressed
+ * @param   pContext            Service handle
+ * @param   M_BSP_KEY__xxxx     Predefined key identification values. Support bitwise operation
+ * @return  Return key mask read from port.
+*/
+u32 rh_bsp_key__read( pBspKey pContext, u32 M_BSP_KEY__xxxx){
+    u32 res = 0;
+    if( (M_BSP_KEY__xxxx & M_BSP_KEY__A) && (0!=rh_cmn_gpio__readBit( M_GB_KEY__A, M_IO_KEY__A)) )
+        res |= M_BSP_KEY__A;
+    
+    if( (M_BSP_KEY__xxxx & M_BSP_KEY__B) && (0!=rh_cmn_gpio__readBit( M_GB_KEY__B, M_IO_KEY__B)) )
+        res |= M_BSP_KEY__B;
+
+    if( (M_BSP_KEY__xxxx & M_BSP_KEY__C) && (0!=rh_cmn_gpio__readBit( M_GB_KEY__C, M_IO_KEY__C)) )
+        res |= M_BSP_KEY__C;
+
+    return res;
+}
+
+
+
+
+/**
+ * @brief
+ * @return
+*/
+u32         rh_bsp_key__trigger     ( pBspKey context, u32 M_BSP_KEY__xxxx, void (*func)( void*), void* param){
+  return -1;
+}
+
+/**
  * @addtogroup
  * 
  * @brief
  * @return
 */
-u32 rh_bsp_key__read( pBspKey_t pState, u32 M_BSP_KEY__xxxx){
-  u32 res = 0;
-  if( (M_BSP_KEY__xxxx & M_BSP_KEY__A) && (0!=rh_cmn_gpio__readBit( M_GB_KEY__A, M_IO_KEY__A)) )
-    res |= M_BSP_KEY__A;
+u32         rh_bsp_key__activate    ( pBspKey context, u32 M_BSP_KEY__xxxx){
+  return -1;
+}
+
+/**
+ * @addtogroup
+ * 
+ * @brief
+ * @return
+*/
+u32         rh_bsp_key__deactivate  ( pBspKey context, u32 M_BSP_KEY__xxxx){
+  return -1;
+}
+
+/**
+ * @addtogroup
+ * 
+ * @brief
+ * @return
+*/
+void        rh_bsp_key__deinit      ( pBspKey context){
   
-  if( (M_BSP_KEY__xxxx & M_BSP_KEY__B) && (0!=rh_cmn_gpio__readBit( M_GB_KEY__B, M_IO_KEY__B)) )
-    res |= M_BSP_KEY__B;
-
-  if( (M_BSP_KEY__xxxx & M_BSP_KEY__C) && (0!=rh_cmn_gpio__readBit( M_GB_KEY__C, M_IO_KEY__C)) )
-    res |= M_BSP_KEY__C;
-
-  return res;
 }
 
 
 
-
-/**
- * @addtogroup
- * 
- * @brief
- * @return
-*/
-u32         rh_bsp_key__trigger     ( pBspKey_t context, u32 M_BSP_KEY__xxxx, void (*func)( void*), void* param){
-  return -1;
-}
-
-/**
- * @addtogroup
- * 
- * @brief
- * @return
-*/
-u32         rh_bsp_key__activate    ( pBspKey_t context, u32 M_BSP_KEY__xxxx){
-  return -1;
-}
-
-/**
- * @addtogroup
- * 
- * @brief
- * @return
-*/
-u32         rh_bsp_key__deactivate  ( pBspKey_t context, u32 M_BSP_KEY__xxxx){
-  return -1;
-}
-
-/**
- * @addtogroup
- * 
- * @brief
- * @return
-*/
-void        rh_bsp_key__deinit      ( pBspKey_t context){
-  
-}
-
+/** @} */ // end of Common
 
 #ifdef __cplusplus
 }

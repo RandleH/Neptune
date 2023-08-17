@@ -98,6 +98,7 @@ target_compile_options( ${PROJECT_NAME} PRIVATE         ${cpu_params}
 target_link_options(${PROJECT_NAME} PRIVATE             -T${CMAKE_SOURCE_DIR}/cfg/STM32F411CEUX_FLASH.ld
                                                         ${cpu_params}
                                                         -specs=nano.specs
+                                                        -specs=nosys.specs
                                                         -lc
                                                         -lm
                                                         -lnosys

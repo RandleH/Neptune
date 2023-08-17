@@ -24,16 +24,25 @@
 
 int main( int argc, char const *argv[]){
 
-  rh_cmn_clk__cpu( _96MHz);
+  	rh_cmn_clk__cpu( _96MHz);
 
 
-  rh_util__zellerCalendarWeekday( 70, 1, 1);
+  	rh_util__zellerCalendarWeekday( 70, 1, 1);
+    
+	pBspKey key = rh_bsp_key__init();
+  	pBspLed led = rh_bsp_led__init();
+    
+	u32 state = rh_bsp_led__state( led, M_BSP_LED__B);
+	rh_bsp_led__toggle( led, M_BSP_LED__B, 90);
 
-  rh_bsp_key__init();
 
-  while(1){
-      
-  }
-  
+  	while(1){
+    	u32 tmp = rh_bsp_led__state( led, M_BSP_LED__B);
+		if( state != tmp ){
+			rh_bsp_led__toggle( led, M_BSP_LED__B, 90);
+			state = tmp;
+		}
+  	}
+
   return 0;
 }
