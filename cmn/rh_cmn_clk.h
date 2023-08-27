@@ -37,18 +37,31 @@ enum CmnCpuFreq{
   _16MHz = 0,
   _25MHz = 1,
   _32MHz = 2,
-  _48MHz = 3,
   _50MHz = 4,
   _96MHz = 5
 };
 
+enum CmnUsbFreq{
+  _48MHz = 0,         /*!< Default Bus Clock for USB */
+  _12MHz = 1          /*!< Full Speed Bus Clock for USB */
+};
+
+enum CmnSystickFreq{
+  _1KHz   = 0,
+  _100Hz  = 1,
+  _10Hz   = 2
+};
+
+
 
 
 /* Exported functions --------------------------------------------------------*/
-u32 rh_cmn_clk__cpu  ( enum CmnCpuFreq frequency );
+u32 rh_cmn_clk__set_cpu  ( enum CmnCpuFreq frequency );
+u32 rh_cmn_clk__set_usb  ( enum CmnUsbFreq frequency );
+
 u32 rh_cmn_clk__reset( void);
 u32 rh_cmn_clk__mco  ( u8 cmd);
-
+u32 rh_cmn_clk__systick_enable( enum CmnSystickFreq frequency);
 
 
 #ifdef __cplusplus
