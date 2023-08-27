@@ -27,7 +27,7 @@
 #define CHECK_PARAM( pBspLedStruct, M_BSP_LED__xxxx )\
     do{\
         if( (pBspLedStruct)==NULL || ((M_BSP_LED__xxxx&(~M_BSP_LED__ALL))!=0) )\
-            return -1;\
+            return UINT32_MAX;\
     }while(0)
 
 
@@ -73,9 +73,10 @@ u32     rh_bsp_led__state ( pBspLed pContext, u32 M_BSP_LED__xxxx){
 
 
 
-void    rh_bsp_led__deinit( pBspLed pContext){
+u32    rh_bsp_led__deinit( pBspLed pContext){
     CHECK_PARAM(pContext, M_BSP_LED__ALL);
 
     #warning "TODO"
     rh_cmn_mem__free(pContext);
+    return 0;
 }

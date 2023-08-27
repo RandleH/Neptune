@@ -22,5 +22,5 @@ u32     rh_bsp_led__toggle( pBspLed pContext, u32 M_BSP_LED__xxxx, u32 delay);
 u32     rh_bsp_led__state ( pBspLed pContext, u32 M_BSP_LED__xxxx);
 
 
-void    rh_bsp_led__deinit( pBspLed pContext);
+u32     rh_bsp_led__deinit( pBspLed pContext);
 #endif
