@@ -28,6 +28,11 @@
 extern "C"{
 #endif
 
+/**
+ * @brief       Memory will be allocated on heap
+ * @param       nBytes
+ * @return      Pointer to the memory
+*/
 void* rh_cmn_mem__malloc( size_t nBytes ){
     return malloc( nBytes);
 }
@@ -36,13 +41,17 @@ void  rh_cmn_mem__free( void* ptr){
     free( ptr);
 }
 
-
+/**
+ * @brief       Memory will be allocated on bss segment
+ * @param       nBytes
+ * @return      Pointer to the memory
+*/
 void* rh_cmn_mem__static_malloc( size_t nBytes ){
-
+    return NULL;
 }
 
 void  rh_cmn_mem__static_free( void* ptr){
-    free( ptr);
+    
 }
 
 

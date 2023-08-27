@@ -32,7 +32,8 @@ extern "C"
 /* Exported functions --------------------------------------------------------*/
 void* rh_cmn_mem__malloc( size_t );
 void  rh_cmn_mem__free( void* );
-
+void* rh_cmn_mem__static_malloc( size_t nBytes );
+void  rh_cmn_mem__static_free( void* ptr);
 
 #ifdef __cplusokus
 }
