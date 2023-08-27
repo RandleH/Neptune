@@ -11,7 +11,7 @@
 			],
 			"group": "build",
 			"problemMatcher": [],
-			"detail": "CMake template build task"
-		}
+			"detail": "CMake build task"
+		} 
 	]
 }

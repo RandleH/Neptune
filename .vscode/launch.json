@@ -5,13 +5,32 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Cortex Debug",
             "cwd": "${workspaceFolder}",
-            "executable": "${workspaceFolder}/build/model1",
+            "executable": "./build/model1.elf",
+            "name": "Debug with JLink",
             "request": "launch",
             "type": "cortex-debug",
+            "device": "STM32F411CE",
             "runToEntryPoint": "main",
-            "servertype": "jlink"
+            "svdFile": "/Users/randleh/Desktop/Embedded-Watch/cfg/stm32f411.svd",
+            "interface": "swd",
+            "servertype": "jlink",
+            "swoConfig": {
+                "enabled": true,
+                "cpuFrequency": 96000000,
+                "swoFrequency": 4000000,
+                "source": "probe",
+                "decoders": [
+                    {
+                        "label": "ITM port 0 output",
+                        "type": "console",
+                        "port": 0,
+                        "showOnStartup": true,
+                        "encoding": "ascii"
+                    }
+                ]
+
+            }
         }
     ]
 }

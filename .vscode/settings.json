@@ -1,10 +1,17 @@
 {
+    "cmake.cmakePath": "/opt/homebrew/bin/cmake",
     "cmake.saveBeforeBuild": true,
     "cmake.configureOnEdit": false,
     "files.associations": {
         "stm32f4xx.h": "c",
         "stm32f411xe.h": "c",
         "rh_bsp_led.h": "c",
-        "rh_cmn_mem.h": "c"
-    }
+        "rh_cmn_mem.h": "c",
+        "rh_app_trace.h": "c",
+        "rh_cmn_delay.h": "c"
+    },
+
+
+    "cortex-debug.gdbPath": "/opt/homebrew/bin/arm-none-eabi-gdb",
+    "cortex-debug.JLinkGDBServerPath": "/usr/local/bin/JLinkGDBServer"
 }
