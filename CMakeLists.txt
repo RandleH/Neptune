@@ -53,6 +53,7 @@ include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Driv
                                         ${config_include}
                                         ${lvgl_include}
                                         ${CMAKE_SOURCE_DIR}
+                                        ${CMAKE_SOURCE_DIR}/app
                                         ${CMAKE_SOURCE_DIR}/app/component/time
                                         ${CMAKE_SOURCE_DIR}/app/component/util
                                         ${CMAKE_SOURCE_DIR}/bsp

@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    rh_cmn_spi.h
+  * @file    rh_bsp_screen.h
   * @author  RandleH
   * @brief   This file contains code template.
   ******************************************************************************
@@ -17,40 +17,24 @@
   ******************************************************************************
   */
 
-
-#ifndef RH_CMN_SPI_H
-#define RH_CMN_SPI_H
+#ifndef RH_BSP_SCREEN_H
+#define RH_BSP_SCREEN_H
 
 
 /* Includes ------------------------------------------------------------------*/
 #include "rh_common.h"
 
 
-#ifdef __cplusplus
-extern "C"{
-#endif
-
-enum CmnSpiFreq{
-  kCmnSpiFreq_48MHz  = 0,
-  kCmnSpiFreq_16MHz  = 1,
-  kCmnSpiFreq_1MHz   = 2,
-  kCmnSpiFreq_2MHz   = 3,
-  kCmnSpiFreq_4MHz   = 4
-};
-
-
-u32 rh_cmn_spi__init       ( enum CmnSpiFreq freq);
-u32 rh_cmn_spi__send_block ( const u8 *buf, size_t len, u8* pDone);
-u32 rh_cmn_spi__send_dma   ( const u8 *buf, size_t len, u8* pDone);
-u32 rh_cmn_spi__deinit     ( void);
 
 
 
+/* Functions -----------------------------------------------------------------*/
+u32 rh_bsp_screen__init( void);
+u32 rh_bsp_screen__flush( const u8 *buf, u16 xs, u16 ys, u16 xe, u16 ye);
 
-#ifdef __cplusplus
-}
-#endif
+
 
 
 
 #endif
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

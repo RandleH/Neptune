@@ -19,6 +19,7 @@
 
 
 /* Includes ------------------------------------------------------------------*/
+#include "stm32f411xe.h"
 #include "rh_bsp_key.h"
 #include "rh_cmn_gpio.h"
 

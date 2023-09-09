@@ -34,35 +34,47 @@ extern "C"{
 
 /* Public typedef ------------------------------------------------------------*/
 enum CmnCpuFreq{
-  _16MHz = 0,
-  _25MHz = 1,
-  _32MHz = 2,
-  _50MHz = 4,
-  _96MHz = 5
+  kCmnCpuFreq_16MHz = 0,
+  kCmnCpuFreq_25MHz = 1,
+  kCmnCpuFreq_32MHz = 2,
+  kCmnCpuFreq_96MHz = 3,
+  kCmnCpuFreq_END
 };
 
 enum CmnUsbFreq{
-  _48MHz = 0,         /*!< Default Bus Clock for USB */
-  _12MHz = 1          /*!< Full Speed Bus Clock for USB */
+  kCmnUsbFreq_48MHz = 0,         /*!< Default Bus Clock for USB */
+  kCmnUsbFreq_12MHz = 1          /*!< Full Speed Bus Clock for USB */
 };
 
 enum CmnSystickFreq{
-  _1KHz   = 0,
-  _100Hz  = 1,
-  _10Hz   = 2
+  kCmnSystickFreq_1KHz   = 0,
+  kCmnSystickFreq_100Hz  = 1,
+  kCmnSystickFreq_10Hz   = 2
 };
 
-
+typedef struct CmnClkEpoch *pCmnClkEpoch;
 
 
 /* Exported functions --------------------------------------------------------*/
 u32 rh_cmn_clk__set_cpu  ( enum CmnCpuFreq frequency );
 u32 rh_cmn_clk__set_usb  ( enum CmnUsbFreq frequency );
 
+enum CmnCpuFreq rh_cmn_clk__get_cpu  ( void);
+
+
+
 u32 rh_cmn_clk__reset( void);
 u32 rh_cmn_clk__mco  ( u8 cmd);
-u32 rh_cmn_clk__systick_enable( enum CmnSystickFreq frequency);
 
+
+u32          rh_cmn_clk__systick_enable( enum CmnSystickFreq frequency);
+pCmnClkEpoch rh_cmn_clk__systick_create_epoch( void);
+u32          rh_cmn_clk__systick_duration_epoch( pCmnClkEpoch pEpoch, bool update);
+u32          rh_cmn_clk__systick_update_epoch( pCmnClkEpoch pEpoch);
+void         rh_cmn_clk__systick_delete_epoch( pCmnClkEpoch pEpoch);
+
+
+u32 rh_cmn_clk__systick_now( void);
 
 #ifdef __cplusplus
 }

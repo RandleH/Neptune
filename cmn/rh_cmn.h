@@ -69,7 +69,7 @@ extern CmnData  gCommonData;
 #include "rh_cmn_delay.h"
 #include "rh_cmn_mem.h"
 #include "rh_cmn_spi.h"
-#include "rh_cmn_spi.h"
+#include "rh_cmn_gpio.h"
 
 
 /************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

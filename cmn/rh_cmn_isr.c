@@ -89,7 +89,7 @@ void PendSV_Handler( void){
  * @return  (none)
 */
 void SysTick_Handler( void){
-    ++gCommonData.clockTick;
+    
 }
 
 

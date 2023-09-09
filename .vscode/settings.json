@@ -8,7 +8,9 @@
         "rh_bsp_led.h": "c",
         "rh_cmn_mem.h": "c",
         "rh_app_trace.h": "c",
-        "rh_cmn_delay.h": "c"
+        "rh_cmn_delay.h": "c",
+        "rh_cmn.h": "c",
+        "rh_bsp.h": "c"
     },
 
 

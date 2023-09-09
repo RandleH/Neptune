@@ -21,6 +21,7 @@
 #include "rh_bsp.h"
 
 #include "rh_cmn.h"
+#include "rh_app.h"
 
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_rcc.h"
@@ -28,37 +29,41 @@
 extern u32 SystemCoreClock;
 
 
-CmnData gCommonData = {0};
-
-
-
-void delay( u32 ms){
-    u64 tmp = ms+gCommonData.clockTick;
-    while( gCommonData.clockTick < tmp){
-        asm( "nop");
-    }
-}
-
-
 int main( int argc, char const *argv[]){
-    rh_cmn_clk__set_cpu( _96MHz);
-    rh_cmn_clk__systick_enable( _1KHz);
-
-    rh_cmn_usart__init( 115200);
+    rh_cmn_clk__set_cpu( kCmnCpuFreq_96MHz);
+    rh_cmn_clk__systick_enable( kCmnSystickFreq_1KHz);
     
+    rh_cmn_gpio__init();
+    rh_cmn_usart__init( 115200);
+    rh_cmn_spi__init( kCmnSpiFreq_48MHz);
+
+    // rh_app_trace__init(NULL);
+    // rh_app_trace__append_message( kTraceBusClock, "------------------------------------------------\n");
+    // rh_app_trace__append_message( kTraceBusClock, "System Core Frequency: %ld Hz\n", HAL_RCC_GetSysClockFreq());
+    // rh_app_trace__append_message( kTraceBusClock, "AHB Clock Frequency: %ld Hz\n", HAL_RCC_GetHCLKFreq());
+    // rh_app_trace__append_message( kTraceBusClock, "APB1 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK1Freq());
+    // rh_app_trace__append_message( kTraceBusClock, "APB2 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK2Freq());
+
+
+
     rh_cmn_usart__printf( "------------------------------------------------\n");
     rh_cmn_usart__printf( "System Core Frequency: %ld Hz\n", HAL_RCC_GetSysClockFreq());
     rh_cmn_usart__printf( "AHB Clock Frequency: %ld Hz\n", HAL_RCC_GetHCLKFreq());
     rh_cmn_usart__printf( "APB1 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK1Freq());
     rh_cmn_usart__printf( "APB2 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK2Freq());
+
+
     
+    rh_bsp_screen__init();
     
-    
+
     while(1){
         rh_cmn_delay_ms__halt(1000);
         rh_cmn_usart__printf( "ping\n");
+        HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
         rh_cmn_delay_ms__halt(1000);
         rh_cmn_usart__printf( "pong\n");
+        HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
     }
 
   return 0;

@@ -8,26 +8,65 @@
 #include "rh_cmn.h"
 
 
+/**
+ * @category    Inquiry Macro
+ * @cond        No W process on queue
+*/
 #define IS_READ_LOCK(x)             (((x)&(1<<0))==0)
+#warning "TODO: Logic not implemented"
+
+/**
+ * @category    Inquiry Macro
+ * @cond        No R/W process on queue
+*/
 #define IS_WRITE_LOCK(x)            (((x)&(1<<1))==0)
+
+/**
+ * @category    Action Macro
+ * @cond        No W process on queue
+*/
 #define SET_READ_LOCK(x)            do{(x) |= (1<<0);}while(0)
+
+/**
+ * @category    Action Macro
+ * @cond        No R/W process on queue
+*/
 #define SET_WRITE_LOCK(x)           do{(x) |= (1<<1);}while(0)
+
+/**
+ * @category    Action Macro
+ * @cond        No R/W process on queue
+*/
 #define UNSET_READ_LOCK(x)          do{(x) &= (~(1<<0));}while(0)
+
+/**
+ * @category    Action Macro
+ * @cond        No R/W process on queue
+*/
 #define UNSET_WRITE_LOCK(x)         do{(x) &= (~(1<<1));}while(0)
+
+
+#define ENTER_CRITICAL_ZONE()       do{}while(0)
+#define EXIT_CRITICAL_ZONE()        do{}while(0)
+
 #define MAX_WAIT_CNT                (1000U)
 #define MAX_BUFFER_SIZE             (256U)
+#define MAX_TRACE_MESSAGE_DURATION  (100U)
+#define TRACE_INTERVAL              (1000U)
 
 
 typedef struct AppTracePackage{
-    u32   color;
-    const char* buf;
-    struct AppTracePackage *pNext;
+    u32   color;                        /*!< Hex format color */
+    const char* buf;                    /*!< Allocated from `rh_cmn_mem__malloc()` */
+    struct AppTracePackage *pNext;      /*!< Linked list; Allocated from `rh_cmn_mem__malloc()` */
 }AppTracePackage_t;
 
 typedef struct AppTrace{
-    AppTracePackage_t *pHead;
+    AppTracePackage_t *pHead;           /*!< Allocated from `rh_cmn_mem__malloc()` */
     u8                lock;
     u32               raw;
+
+    pCmnClkEpoch      pEpoch;
 }AppTrace_t;
 
 typedef struct AppTrace   *pAppTrace;
@@ -36,10 +75,15 @@ typedef struct AppTrace   *pAppTrace;
 static AppTrace_t s_context = {0};
 
 
+/**
+ * @brief       Initialize Application: Trace
+ * @param       config      Nullable pointer. If null, use default config
+*/
 void rh_app_trace__init( const pAppTraceCfg config){
     s_context.lock  = 0;
     s_context.pHead = NULL;
     s_context.raw   = 0x00000000;
+    s_context.pEpoch = rh_cmn_clk__systick_create_epoch();
 }
 
 
@@ -138,6 +182,44 @@ BUSY:
     allocated_buffer = NULL;
     return 2;   
 }
+
+
+static void rh_app_trace__send_message( void* dummy_ptr){
+    
+    while(1){
+        rh_cmn_clk__systick_update_epoch( s_context.pEpoch);
+        AppTracePackage_t dummy = {.pNext=s_context.pHead};
+        AppTracePackage_t *pNow  = dummy.pNext;
+        
+        while( MAX_TRACE_MESSAGE_DURATION > rh_cmn_clk__systick_duration_epoch( s_context.pEpoch, false) ){
+            if( IS_WRITE_LOCK(s_context.lock) ){
+                goto SKIP_TO_NEXT_ROUND;
+            }
+
+            SET_WRITE_LOCK(s_context.lock);
+            if( pNow!=NULL){
+                
+                ENTER_CRITICAL_ZONE();
+                // Color Rendering:
+
+                // Send Buffer:
+                rh_cmn_usart__printf( pNow->buf);
+                EXIT_CRITICAL_ZONE();
+
+                rh_cmn_mem__free( (void*)(pNow->buf));
+                dummy.pNext = pNow->pNext;
+                rh_cmn_mem__free( pNow);
+                pNow = dummy.pNext;
+                UNSET_WRITE_LOCK(s_context.lock);
+            }
+            UNSET_READ_LOCK(s_context.lock);
+        }
+SKIP_TO_NEXT_ROUND:
+        rh_cmn_clk__systick_update_epoch( s_context.pEpoch);
+        rh_cmn_delay_ms__escape(TRACE_INTERVAL);
+    }
+}
+
 
 /**
  * @retval      Return 0 if success

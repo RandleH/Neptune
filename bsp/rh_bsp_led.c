@@ -20,17 +20,75 @@
 /* Includes ------------------------------------------------------------------*/
 #include "rh_bsp_led.h"
 #include "rh_cmn_mem.h"
+#include "rh_cmn_gpio.h"
+
+#include "stm32f411xe.h"
+
+
 
 
 
 /* Private define ------------------------------------------------------------*/
+
+
+
+// #define LED_R_CLK_ENABLE()     \
+//     do{\
+//         \
+//     }while(0)\
+
+
+// #define LED_G_CLK_ENABLE()     \
+//     do{\
+//         \
+//     }while(0)\
+
+// #define LED_B_CLK_ENABLE()     \
+//     do{\
+//         \
+//     }while(0)\
+
+#define LED_R_GPIOx             GPIOA
+#define LED_G_GPIOx             GPIOB
+#define LED_B_GPIOx             GPIOC
+#define LED_R_PINx              (11U)
+#define LED_G_PINx              (12U)
+#define LED_B_PINx              (13U)
+
+
+
+
 #define CHECK_PARAM( pBspLedStruct, M_BSP_LED__xxxx )\
     do{\
         if( (pBspLedStruct)==NULL || ((M_BSP_LED__xxxx&(~M_BSP_LED__ALL))!=0) )\
             return UINT32_MAX;\
     }while(0)
 
+#define SET_PARAM( pBspLedStruct, M_BSP_LED__xxxx )\
+    do{\
+        if( M_BSP_LED__xxxx & M_BSP_LED__R){\
+            rh_cmn_gpio__setBit( LED_R_GPIOx, (u32)(1<<LED_R_PINx));\
+        }\
+        if( M_BSP_LED__xxxx & M_BSP_LED__G){\
+            rh_cmn_gpio__setBit( LED_G_GPIOx, (u32)(1<<LED_G_PINx));\
+        }\
+        if( M_BSP_LED__xxxx & M_BSP_LED__B){\
+            rh_cmn_gpio__setBit( LED_B_GPIOx, (u32)(1<<LED_B_PINx));\
+        }\
+    }while(0)
 
+#define UNSET_PARAM( pBspLedStruct, M_BSP_LED__xxxx )\
+    do{\
+        if( M_BSP_LED__xxxx & M_BSP_LED__R){\
+            rh_cmn_gpio__unsetBit( LED_R_GPIOx, (u32)(1<<LED_R_PINx));\
+        }\
+        if( M_BSP_LED__xxxx & M_BSP_LED__G){\
+            rh_cmn_gpio__unsetBit( LED_G_GPIOx, (u32)(1<<LED_G_PINx));\
+        }\
+        if( M_BSP_LED__xxxx & M_BSP_LED__B){\
+            rh_cmn_gpio__unsetBit( LED_B_GPIOx, (u32)(1<<LED_B_PINx));\
+        }\
+    }while(0)
 
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +99,12 @@ struct BspLed{
 
 
 /* Functions -----------------------------------------------------------------*/
+
+/**
+ * @brief       Create a led handle
+ * @return      Return NULL if failed
+ *              Return valid handle if success
+*/
 pBspLed rh_bsp_led__init( void){
     pBspLed ptr = (pBspLed)rh_cmn_mem__malloc( sizeof(struct BspLed));
     
@@ -50,8 +114,12 @@ pBspLed rh_bsp_led__init( void){
 
 u32     rh_bsp_led__switch( pBspLed pContext, u32 M_BSP_LED__xxxx, u32 delay, u8 cmd){
     CHECK_PARAM(pContext, M_BSP_LED__xxxx);
-
-    #warning "TODO"
+    
+    if(cmd==true){
+        SET_PARAM( pBspLedStruct, M_BSP_LED__xxxx );
+    }else{
+        UNSET_PARAM( pBspLedStruct, M_BSP_LED__xxxx );
+    }
     return 0;
 }
 

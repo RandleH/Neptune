@@ -63,10 +63,10 @@ u32 rh_cmn_delay_ms__halt( u32 ms){
         "mov    r2, #10000              \n" // Cycle: 1
         "udiv   r3, r1, r2              \n" // Cycle: 2-12
         "mul    r4, r0, r3              \n" // Cycle: 1
-        "LOOP:                          \n"
+        "LOOP__rh_cmn_delay_ms__halt:                          \n"
         "sub    r4, r4, #1              \n" // Cycle: 1
         "cmp    r4, #0                  \n" // Cycle: 1
-        "bne    LOOP                    \n" // Cycle: 1 + P
+        "bne    LOOP__rh_cmn_delay_ms__halt                    \n" // Cycle: 1 + P
         : // No output
         : "r"(SystemCoreClock)
     );
@@ -80,11 +80,13 @@ u32 rh_cmn_delay_ms__halt( u32 ms){
  * @retval      Return 0 if no error occurs
 */
 u32 rh_cmn_delay_us__halt( u32 us){
+    #warning "TODO"
+
     return 0;
 }
 
 /**
- * @brief       This function will suspend the current thread and will return by the given time range
+ * @brief       This function will suspend the current thread and return by the given time range
  * @param       ms  milliseconds
  * @retval      Return 0 if no error occurs
 */
@@ -94,9 +96,10 @@ u32 rh_cmn_delay_ms__escape( u32 ms){
 }
 
 /**
- * @brief       This function will suspend the current thread and will return by the given time range
+ * @brief       This function will suspend the current thread and return by the given time range
  * @param       us  microseconds
  * @retval      Return 0 if no error occurs
+ * @warning     Unimplemented
 */
 u32 rh_cmn_delay_us__escape( u32 us){
     return 0;
@@ -107,6 +110,7 @@ u32 rh_cmn_delay_us__escape( u32 us){
  *              return immediately
  * @param       ms  microseconds
  * @retval      Return 0 if no error occurs
+ * @warning     Unimplemented
 */
 u32 rh_cmn_delay_ms__callback( u32 ms, void(*func)(void*), void* param){
     return 0;
@@ -117,6 +121,7 @@ u32 rh_cmn_delay_ms__callback( u32 ms, void(*func)(void*), void* param){
  *              return immediately
  * @param       us  microseconds
  * @retval      Return 0 if no error occurs
+ * @warning     Unimplemented
 */
 u32 rh_cmn_delay_us__callback( u32 us, void(*func)(void*), void* param){
     return 0;

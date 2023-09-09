@@ -46,7 +46,6 @@
 #define USART_CLK_INIT()        \
     do{\
         __USART2_CLK_ENABLE();\
-        __GPIOA_CLK_ENABLE();\
     }while(0)
 
 
@@ -91,18 +90,6 @@ static void send_bytes__blocking( const char *buf, size_t len){
 */
 u32 rh_cmn_usart__init( u32 baudrate){
     USART_CLK_INIT();
-    GPIO_InitTypeDef GPIO_InitStructure;
- 
-    GPIO_InitStructure.Pin       = (1<<PIN_TX);
-    GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
-    GPIO_InitStructure.Alternate = GPIO_AF7_USART2;
-    GPIO_InitStructure.Speed     = GPIO_SPEED_HIGH;
-    GPIO_InitStructure.Pull      = GPIO_PULLUP;
-    HAL_GPIO_Init(GPIOx_TX, &GPIO_InitStructure);
-    
-    GPIO_InitStructure.Pin       = (1<<PIN_RX);
-    GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
-    HAL_GPIO_Init(GPIOx_RX, &GPIO_InitStructure);
 
     UART_HandleTypeDef s_UARTHandle;
     s_UARTHandle.Instance        = USARTx;
@@ -143,6 +130,13 @@ int rh_cmn_usart__printf( char const *fmt, ...){
 
     return 0;
 }
+
+
+
+
+
+
+
 
 
 

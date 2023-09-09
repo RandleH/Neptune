@@ -4,7 +4,7 @@
 
 #include "rh_bsp_key.h"
 #include "rh_bsp_led.h"
-
+#include "rh_bsp_screen.h"
 
 
 #endif
