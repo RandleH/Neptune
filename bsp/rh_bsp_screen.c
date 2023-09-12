@@ -19,6 +19,7 @@
 
 
 /* Includes ------------------------------------------------------------------*/
+#include <stdlib.h>
 #include "stm32f4xx.h"
 #include "rh_bsp_screen.h"
 #include "rh_cmn_gpio.h"
@@ -59,9 +60,9 @@
 */
 static void rh_bsp_screen__send( const u8 *code, size_t len){
     while( len!=0 ){
-        PIN_DC( *code++);
+        PIN_DC( *code++);       /* Determine command or data */
         --len;
-        u8 nItem = *code++;
+        u8 nItem = *code++;     /* Parse num of items */
         --len;
 
         u8 done = false;
@@ -84,12 +85,137 @@ static void rh_bsp_screen__reset( void){
 }
 
 
+static void rh_bsp_screen__area( u8 x0, u8 y0, u8 x1, u8 y1){
+    const u8 code[] = {
+        /* Set the X coordinates */
+        CMD, 1, 0x2A,\
+        DAT, 4, 0x00,  x0,0x00,  x1,\
+        
+        /* Set the Y coordinates */
+        CMD, 1, 0x2B,\
+        DAT, 4, 0x00,  y0,0x00,  y1,\
+
+        CMD, 1, 0x2C
+    };
+    rh_bsp_screen__send( code, sizeof(code)/sizeof(*code));
+}
+
+static void rh_bsp_screen__sendData( const u8 *data, size_t len){
+    PIN_DC(1);
+
+    static u8 done = false;
+    rh_cmn_spi__send_block( data, len, &done);
+    while(!done){
+        //...//
+    }
+}
+
+
+/**
+ * @brief       Change Scan Direction
+ * @param       mode    @ref 0: L->R; U->D;
+ *                      @ref 1: R->L; D->U;
+*/
+static void rh_bsp_screen__scan_mode( u8 mode){
+    u8 code[] = {
+        CMD, 1, 0x36,\
+        DAT, 1, 0x08
+    };
+
+    switch(mode){
+        case 0: // PASSED
+            code[5] = 0x08;
+            break;
+        case 1: // PASSED
+            code[5] = 0xC8;
+            break;
+        default:
+            break;    
+    }
+
+    rh_bsp_screen__send( code, sizeof(code)/sizeof(*code));  
+}
+
+/**
+ * @brief       Flush screen from a given buffer
+ *              Length of the buffer must be valid great or equal than (xe-xs+1)*(ye-ys+1)
+ * @return      Return 0, if success
+ *              Return 1, if area params are wrong
+ *              Return 2, if buffer pointer is NULL
+*/
+u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u16 ye){
+    if( xs>xe || ys>ye ){
+        return 1;
+    }
+
+    if( buf==NULL){
+        return 2;
+    }
+
+    PIN_CS(0);
+    rh_bsp_screen__area( xs, ys, xe, ye);
+    rh_bsp_screen__sendData( (u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t) );
+    PIN_CS(1);
+
+    return 0;
+}
+
+
+/**
+ * @brief       Fill screen with single color
+ *              Length of the buffer must be valid great or equal than (xe-xs+1)*(ye-ys+1)
+ * @return      Return 0, if success
+ *              Return 1, if area params are wrong
+*/
+static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u16 xe, u16 ye){
+    if( xs>xe || ys>ye ){
+        return 1;
+    }
+    
+    u8 *buf = alloca(sizeof(BspScreenPixel_t));
+
+
+    switch( sizeof(color)){
+        case 1:
+            buf[0] = (u8)(color&0xff);
+            break;
+        case 2:
+            buf[0] = (u8)(color&0xff);
+            buf[1] = (u8)(color>>8);
+            break;
+        case 4:
+            buf[0] = (u8)(color&0xff);
+            buf[1] = (u8)((color>>8)&0xff);
+            buf[2] = (u8)((color>>16)&0xff);
+            buf[3] = (u8)((color>>24)&0xff);
+            break;
+        default:
+            return 2;
+    }
+
+    PIN_CS(0);
+    rh_bsp_screen__area( xs, ys, xe, ye);
+    
+
+    for( u8 y=ys; y<= ye; ++y){
+        for( u8 x=xs; x<=xe; ++x){
+            rh_bsp_screen__sendData( buf, sizeof(color));
+        }
+    }
+
+    PIN_CS(1);
+
+    return 0;
+}
+
+
+
 /* Functions -----------------------------------------------------------------*/
 /**
  * @brief       Initialize screen         \n
  *              Estimated Duration: 500ms \n
  * 
- * @return
+ * @return      
  * 
 */
 u32 rh_bsp_screen__init( void){
@@ -199,19 +325,13 @@ u32 rh_bsp_screen__init( void){
     rh_bsp_screen__send( on_code, sizeof(on_code)/sizeof(u8));
 
     DELAY_MS(20);
-    PIN_CS(1);
 
+    rh_bsp_screen__scan_mode(0);
+
+    rh_bsp_screen__fill( 0xffff, 0, 0, 240, 240);
+
+    PIN_CS(1);
     return 0;
 }
-
-
-u32 rh_bsp_screen__flush( const u8 *buf, u16 xs, u16 ys, u16 xe, u16 ye){
-    
-}
-
-
-
-
-
 
 

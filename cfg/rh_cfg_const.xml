@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://www.example.org/Product"
+    xmlns:tns="http://www.example.org/Product"
+    elementFormDefault="qualified">
+
+    <Name>ConstEnumeration</Name>
+
+    <Title>Constant Value Enumeration</Title>
+
+        <EnumeratedType>
+        <Name></Name>
+        <Type>uint16_t</Type>
+        <Range>
+        
+        </Range>
+        </EnumeratedType>
+

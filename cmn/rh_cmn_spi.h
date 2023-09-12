@@ -42,6 +42,9 @@ enum CmnSpiFreq{
 u32 rh_cmn_spi__init       ( enum CmnSpiFreq freq);
 u32 rh_cmn_spi__send_block ( const u8 *buf, size_t len, u8* pDone);
 u32 rh_cmn_spi__send_dma   ( const u8 *buf, size_t len, u8* pDone);
+
+u32 rh_cmn_spi__send_value_block( const u8 value, size_t nTimes, u8* pDone);
+
 u32 rh_cmn_spi__deinit     ( void);
 
 

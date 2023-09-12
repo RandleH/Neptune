@@ -172,6 +172,98 @@ static u8 rh_cmn_spi__calculate_div( enum CmnCpuFreq f_cpu, enum CmnSpiFreq f_sp
 }
 
 
+/**
+ * @brief       Send data. This function will block the program until transfer completed
+ * @retval      Return 0 if success
+ *              Return 1 if nothing to transmit
+*/
+u32 rh_cmn_spi__send_block( const u8 *buf, size_t len, u8* pDone){
+    #warning "Unverified"
+    if( pDone!=NULL){
+        *pDone = false;
+    }
+
+    if( buf==NULL || len==0){
+        return 1;
+    }
+
+    CLEAR_BIT( SPIx->CR1, SPI_CR1_DFF);
+    SET_BIT( SPIx->CR1, SPI_CR1_BIDIOE);
+    if( !READ_BIT( SPIx->CR1, SPI_CR1_SPE) ){
+        SET_BIT( SPIx->CR1, SPI_CR1_SPE);
+    }
+    
+    while( len--){
+        SPIx->DR = *buf++;
+        while( 0==READ_BIT( SPIx->SR, SPI_SR_TXE));  // Blocking function
+    }
+    
+    *pDone = true;
+    return 0;
+}
+
+/**
+ * @brief       Send data value. This function will block the program until transfer completed
+ * @retval      Return 0 if success
+ *              Return 1 if nothing to transmit
+*/
+u32 rh_cmn_spi__send_value_block( const u8 value, size_t nTimes, u8* pDone){
+    #warning "Unverified"
+    if( pDone!=NULL){
+        *pDone = false;
+    }
+
+    if( nTimes==0){
+        return 1;
+    }
+
+    CLEAR_BIT( SPIx->CR1, SPI_CR1_DFF);
+    SET_BIT( SPIx->CR1, SPI_CR1_BIDIOE);
+    if( !READ_BIT( SPIx->CR1, SPI_CR1_SPE) ){
+        SET_BIT( SPIx->CR1, SPI_CR1_SPE);
+    }
+    
+    while( nTimes--){
+        SPIx->DR = value;
+        while( 0==READ_BIT( SPIx->SR, SPI_SR_TXE));  // Blocking function
+    }
+    
+    *pDone = true;
+    return 0;
+}
+
+/**
+ * @brief       Send data using DMA channel.
+ * @ref         RM0383, Page 580 -- SPI communication using DMA
+ *              RM0383, Page 170 -- DMA Table
+ * @param       tx_buf      Data to be sent
+ * @param       len         Buffer length
+ * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
+ * @retval      Return 0 if params are OK
+ *              Return 1 if `pDone` is a NULL pointer
+ *              Return 2 if `buf` or `len` is 0. Nothing to send
+*/
+u32 rh_cmn_spi__send_dma( const u8 *tx_buf, size_t len, u8* pDone){
+
+    #warning "Unimplemented"
+    return 0;
+}
+
+/**
+ * @brief       Send data using DMA channel.
+ * @param       tx_buf      Data to be sent
+ * @param       len         Buffer length
+ * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
+ * @retval      Return 0 if params are OK
+ *              Return 1 if `pDone` is a NULL pointer
+ *              Return 2 if `buf` or `len` is 0. Nothing to send
+*/
+u32 rh_cmn_spi__recv_dma( u8 *rx_buf, size_t len, u8* pDone){
+    #warning "Unimplemented"
+    return 0;
+}
+
+
 
 /**
  * @brief       Initialize SPI module. Internal connected to hardware
@@ -247,66 +339,6 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
     return 0;
 }
 
-/**
- * @brief       Send data. This function will block the program until transfer completed
- * @retval      Return 0 if success
- *              Return 1 if nothing to transmit
-*/
-u32 rh_cmn_spi__send_block( const u8 *buf, size_t len, u8* pDone){
-    #warning "Unverified"
-    if( pDone!=NULL){
-        *pDone = false;
-    }
-
-    if( buf==NULL || len==0){
-        return 1;
-    }
-
-    CLEAR_BIT( SPIx->CR1, SPI_CR1_DFF);
-    SET_BIT( SPIx->CR1, SPI_CR1_BIDIOE);
-    if( !READ_BIT( SPIx->CR1, SPI_CR1_SPE) ){
-        SET_BIT( SPIx->CR1, SPI_CR1_SPE);
-    }
-    
-    while( len--){
-        SPIx->DR = *buf++;
-        while( 0==READ_BIT( SPIx->SR, SPI_SR_TXE));  // Blocking function
-    }
-    
-    *pDone = true;
-    return 0;
-}
-
-/**
- * @brief       Send data using DMA channel.
- * @ref         RM0383, Page 580 -- SPI communication using DMA
- *              RM0383, Page 170 -- DMA Table
- * @param       tx_buf      Data to be sent
- * @param       len         Buffer length
- * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
- * @retval      Return 0 if params are OK
- *              Return 1 if `pDone` is a NULL pointer
- *              Return 2 if `buf` or `len` is 0. Nothing to send
-*/
-u32 rh_cmn_spi__send_dma( const u8 *tx_buf, size_t len, u8* pDone){
-
-    #warning "Unimplemented"
-    return 0;
-}
-
-/**
- * @brief       Send data using DMA channel.
- * @param       tx_buf      Data to be sent
- * @param       len         Buffer length
- * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
- * @retval      Return 0 if params are OK
- *              Return 1 if `pDone` is a NULL pointer
- *              Return 2 if `buf` or `len` is 0. Nothing to send
-*/
-u32 rh_cmn_spi__recv_dma( u8 *rx_buf, size_t len, u8* pDone){
-    #warning "Unimplemented"
-    return 0;
-}
 
 
 /**

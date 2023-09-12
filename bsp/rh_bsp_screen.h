@@ -26,11 +26,14 @@
 
 
 
+/* Exported types ------------------------------------------------------------*/
+typedef u16   BspScreenPixel_t;
+
 
 
 /* Functions -----------------------------------------------------------------*/
 u32 rh_bsp_screen__init( void);
-u32 rh_bsp_screen__flush( const u8 *buf, u16 xs, u16 ys, u16 xe, u16 ye);
+u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u16 ye);
 
 
 
