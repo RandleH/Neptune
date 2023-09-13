@@ -58,7 +58,7 @@
 /**
  * @brief       
 */
-static void rh_bsp_screen__send( const u8 *code, size_t len){
+static void rh_bsp_screen__parse( const u8 *code, size_t len){
     while( len!=0 ){
         PIN_DC( *code++);       /* Determine command or data */
         --len;
@@ -66,7 +66,7 @@ static void rh_bsp_screen__send( const u8 *code, size_t len){
         --len;
 
         u8 done = false;
-        rh_cmn_spi__send_block( code, nItem, &done);
+        rh_cmn_spi__send_block( code, nItem, 1, 0, &done);
         while(!done){
             //...//
         }
@@ -74,6 +74,9 @@ static void rh_bsp_screen__send( const u8 *code, size_t len){
         len  -= nItem;
     }
 }
+
+
+
 
 static void rh_bsp_screen__reset( void){
     PIN_RST(1);
@@ -97,17 +100,7 @@ static void rh_bsp_screen__area( u8 x0, u8 y0, u8 x1, u8 y1){
 
         CMD, 1, 0x2C
     };
-    rh_bsp_screen__send( code, sizeof(code)/sizeof(*code));
-}
-
-static void rh_bsp_screen__sendData( const u8 *data, size_t len){
-    PIN_DC(1);
-
-    static u8 done = false;
-    rh_cmn_spi__send_block( data, len, &done);
-    while(!done){
-        //...//
-    }
+    rh_bsp_screen__parse( code, sizeof(code)/sizeof(*code));
 }
 
 
@@ -133,7 +126,7 @@ static void rh_bsp_screen__scan_mode( u8 mode){
             break;    
     }
 
-    rh_bsp_screen__send( code, sizeof(code)/sizeof(*code));  
+    rh_bsp_screen__parse( code, sizeof(code)/sizeof(*code));  
 }
 
 /**
@@ -154,7 +147,12 @@ u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u
 
     PIN_CS(0);
     rh_bsp_screen__area( xs, ys, xe, ye);
-    rh_bsp_screen__sendData( (u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t) );
+    
+    u8 done = false;
+
+    PIN_DC(1);
+    rh_cmn_spi__send_block( (const u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t), 1, 0, &done);
+
     PIN_CS(1);
 
     return 0;
@@ -174,20 +172,19 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
     
     u8 *buf = alloca(sizeof(BspScreenPixel_t));
 
-
     switch( sizeof(color)){
         case 1:
             buf[0] = (u8)(color&0xff);
             break;
         case 2:
-            buf[0] = (u8)(color&0xff);
-            buf[1] = (u8)(color>>8);
+            buf[1] = (u8)(color&0xff);
+            buf[0] = (u8)(color>>8);
             break;
         case 4:
-            buf[0] = (u8)(color&0xff);
-            buf[1] = (u8)((color>>8)&0xff);
-            buf[2] = (u8)((color>>16)&0xff);
-            buf[3] = (u8)((color>>24)&0xff);
+            buf[3] = (u8)(color&0xff);
+            buf[2] = (u8)((color>>8)&0xff);
+            buf[1] = (u8)((color>>16)&0xff);
+            buf[0] = (u8)((color>>24)&0xff);
             break;
         default:
             return 2;
@@ -196,12 +193,9 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
     PIN_CS(0);
     rh_bsp_screen__area( xs, ys, xe, ye);
     
-
-    for( u8 y=ys; y<= ye; ++y){
-        for( u8 x=xs; x<=xe; ++x){
-            rh_bsp_screen__sendData( buf, sizeof(color));
-        }
-    }
+    u8 done = false;
+    PIN_DC(1);
+    rh_cmn_spi__send_block( buf, sizeof(color), (xe-xs+1)*(ye-ys+1), 0, &done);
 
     PIN_CS(1);
 
@@ -316,19 +310,33 @@ u32 rh_bsp_screen__init( void){
         CMD,  3, 0x35,0x21,0x11
     };
 
-    rh_bsp_screen__send( init_code, sizeof(init_code)/sizeof(u8));
+    rh_bsp_screen__parse( init_code, sizeof(init_code)/sizeof(u8));
 
     DELAY_MS(120);
     const u8 on_code[] = {
         CMD, 1, 0x29,\
     };
-    rh_bsp_screen__send( on_code, sizeof(on_code)/sizeof(u8));
+    rh_bsp_screen__parse( on_code, sizeof(on_code)/sizeof(u8));
 
     DELAY_MS(20);
 
     rh_bsp_screen__scan_mode(0);
+    
 
-    rh_bsp_screen__fill( 0xffff, 0, 0, 240, 240);
+    union{
+        struct{
+            u16 B : 5;
+            u16 G : 6;
+            u16 R : 5;
+        }channel;
+        u16 full;
+    }color;
+
+    color.channel.R = 20; // [0:31]
+    color.channel.G = 40; // [0:63]
+    color.channel.B = 20; // [0:31]
+
+    rh_bsp_screen__fill( color.full, 0, 0, 240, 240);
 
     PIN_CS(1);
     return 0;

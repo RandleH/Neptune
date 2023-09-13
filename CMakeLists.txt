@@ -39,8 +39,8 @@ set( config_define -DSTM32F411xE -DUSE_HAL_DRIVER)
 set( lvgl_define -DLV_USE_DEV_VERSION)
 
 set( LV_CONF_PATH   ${CMAKE_SOURCE_DIR}/cfg/lv_conf.h)
-add_subdirectory( lib/lvgl   ${CMAKE_SOURCE_DIR}/build/lvgl/build)
-
+add_subdirectory( lib/lvgl              ${CMAKE_SOURCE_DIR}/build/lvgl/build)
+add_subdirectory( lib/FreeRTOS-Kernel   ${CMAKE_SOURCE_DIR}/build/freertos/build)
 
 set( cpu_params         -mcpu=cortex-m4
                         -mthumb

@@ -49,6 +49,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "rh_cmn_spi.h"
 #include "rh_cmn_clk.h"
+#include "rh_cmn_delay.h"
 
 #include "stm32f4xx.h"
 #include "stm32f4xx_hal_gpio.h"
@@ -174,33 +175,49 @@ static u8 rh_cmn_spi__calculate_div( enum CmnCpuFreq f_cpu, enum CmnSpiFreq f_sp
 
 /**
  * @brief       Send data. This function will block the program until transfer completed
+ * @param       buf                 [in]    Data buffer pointer
+ * @param       nItems              [in]    Buffer length in bytes
+ * @param       nTimes              [in]    Num of transmission counts.
+ * @param       interval_delay_ms   [in]    Delay in ms for each repetition interval. This is a non-blocking delay
+ * @param       pDone               [out]   Finished flag hook pointer
  * @retval      Return 0 if success
  *              Return 1 if nothing to transmit
 */
-u32 rh_cmn_spi__send_block( const u8 *buf, size_t len, u8* pDone){
+u32 rh_cmn_spi__send_block( const u8 *buf, size_t nItems, size_t nTimes, u32 interval_delay_ms, u8* pDone){
     #warning "Unverified"
     if( pDone!=NULL){
         *pDone = false;
     }
 
-    if( buf==NULL || len==0){
+    if( buf==NULL || nItems==0){
         return 1;
     }
-
+    
     CLEAR_BIT( SPIx->CR1, SPI_CR1_DFF);
     SET_BIT( SPIx->CR1, SPI_CR1_BIDIOE);
     if( !READ_BIT( SPIx->CR1, SPI_CR1_SPE) ){
         SET_BIT( SPIx->CR1, SPI_CR1_SPE);
     }
     
-    while( len--){
-        SPIx->DR = *buf++;
-        while( 0==READ_BIT( SPIx->SR, SPI_SR_TXE));  // Blocking function
+    
+    while(nTimes--){
+        const u8 *ptr = buf;
+        size_t len = nItems;
+        while( len--){
+            SPIx->DR = *ptr++;
+            while( 0==READ_BIT( SPIx->SR, SPI_SR_TXE));  // Blocking function
+        }
+
+        if( interval_delay_ms!=0){
+            rh_cmn_delay_ms__escape( interval_delay_ms);
+        }
     }
     
     *pDone = true;
     return 0;
 }
+
+
 
 /**
  * @brief       Send data value. This function will block the program until transfer completed
@@ -262,7 +279,6 @@ u32 rh_cmn_spi__recv_dma( u8 *rx_buf, size_t len, u8* pDone){
     #warning "Unimplemented"
     return 0;
 }
-
 
 
 /**
