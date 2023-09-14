@@ -347,7 +347,7 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
     hspi2.hdmatx->Init.PeriphBurst         = DMA_PBURST_SINGLE;
     hspi2.hdmatx->Instance                 = DMAx_STRx;
 
-    if( HAL_OK!=HAL_DMA_Init( &hspi2.hdmatx)){
+    if( HAL_OK!=HAL_DMA_Init( hspi2.hdmatx)){
         return 2;
     }
 
