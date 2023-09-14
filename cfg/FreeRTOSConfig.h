@@ -128,6 +128,8 @@ to exclude the API function. */
 
 */
 #define configSUPPORT_STATIC_ALLOCATION          1
+#define configSUPPORT_DYNAMIC_ALLOCATION         1
+
 #define USE_FreeRTOS_HEAP_4
 
 /* Cortex-M specific definitions. */

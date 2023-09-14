@@ -40,7 +40,31 @@ set( lvgl_define -DLV_USE_DEV_VERSION)
 
 set( LV_CONF_PATH   ${CMAKE_SOURCE_DIR}/cfg/lv_conf.h)
 add_subdirectory( lib/lvgl              ${CMAKE_SOURCE_DIR}/build/lvgl/build)
-add_subdirectory( lib/FreeRTOS-Kernel   ${CMAKE_SOURCE_DIR}/build/freertos/build)
+
+
+
+
+# Select the native compile PORT
+# set( FREERTOS_PORT "GCC_POSIX" CACHE STRING "" FORCE)
+# Select the cross-compile PORT
+# if (CMAKE_CROSSCOMPILING)
+#     message("Compile in ISS mode")
+#     set(FREERTOS_PORT "GCC_ARM_CM4F" CACHE STRING "" FORCE)
+# endif()
+
+message("Compile in ISS mode")
+set( FREERTOS_HEAP "4" CACHE STRING "" FORCE)
+set( FREERTOS_PORT "GCC_ARM_CM4F" CACHE STRING "" FORCE)
+set( freertos_include               ${CMAKE_SOURCE_DIR}/lib/FreeRTOS-Kernel/include
+                                    ${CMAKE_SOURCE_DIR}/lib/FreeRTOS-Kernel/portable/GCC/ARM_CM4F)
+
+
+
+# FetchContent_MakeAvailable(freertos_kernel)
+# target_compile_definitions(freertos_config INTERFACE ${definitions})
+# target_compile_options(freertos_config INTERFACE ${options})
+
+
 
 set( cpu_params         -mcpu=cortex-m4
                         -mthumb
@@ -52,6 +76,7 @@ include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Driv
                                         ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc
                                         ${config_include}
                                         ${lvgl_include}
+                                        ${freertos_include}
                                         ${CMAKE_SOURCE_DIR}
                                         ${CMAKE_SOURCE_DIR}/app
                                         ${CMAKE_SOURCE_DIR}/app/component/time
@@ -71,30 +96,26 @@ add_definitions( ${config_define} ${lvgl_define})
 add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
 
-
 add_executable( ${PROJECT_NAME}.elf     ${CMAKE_SOURCE_DIR}/main.c 
-                                        ${startup_script}
-                                        ${cmsis_script}
-                                        ${source_app_util}
-                                        ${source_app_time}
-                                        ${source_app_trace}
-                                        ${source_cmn}
-                                        ${source_bsp}
-                                        ${source_stm32hal})
-
-
-
+                                                        ${startup_script}
+                                                        ${cmsis_script}
+                                                        ${source_app_util}
+                                                        ${source_app_time}
+                                                        ${source_app_trace}
+                                                        ${source_cmn}
+                                                        ${source_bsp}
+                                                        ${source_stm32hal})
 
 target_compile_definitions(${PROJECT_NAME}.elf PRIVATE      ${config_define})
 
-target_compile_options( ${PROJECT_NAME}.elf PRIVATE         ${cpu_params}
+target_compile_options( ${PROJECT_NAME}.elf PRIVATE     ${cpu_params}
                                                         -fdata-sections
                                                         -ffunction-sections
                                                         -Wall
                                                         -Wno-pedantic
                                                         $<$<CONFIG:Debug>:-Og>)
 
-target_link_options(${PROJECT_NAME}.elf PRIVATE             -T${CMAKE_SOURCE_DIR}/cfg/STM32F411CEUX_FLASH.ld
+target_link_options(${PROJECT_NAME}.elf PRIVATE          -T${CMAKE_SOURCE_DIR}/cfg/STM32F411CEUX_FLASH.ld
                                                         ${cpu_params}
                                                         -specs=nano.specs
                                                         -specs=nosys.specs
@@ -103,6 +124,32 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE             -T${CMAKE_SOURCE_DIR
                                                         -lnosys
                                                         -Wl,-Map=${PROJECT_NAME}.map,--cref
                                                         -Wl,--gc-sections)
+
+
+
+add_library(freertos_config INTERFACE)
+add_subdirectory( lib/FreeRTOS-Kernel   ${CMAKE_SOURCE_DIR}/build/freertos/build)
+
+target_compile_options( freertos_config     INTERFACE     ${cpu_params}
+                                                        -fdata-sections
+                                                        -ffunction-sections
+                                                        -Wall
+                                                        -Wno-pedantic
+                                                        $<$<CONFIG:Debug>:-Og>)
+
+target_include_directories(freertos_config SYSTEM
+INTERFACE
+    ${CMAKE_SOURCE_DIR}/cfg
+)
+
+target_compile_definitions(freertos_config
+    INTERFACE
+    projCOVERAGE_TEST=0
+)
+                                                        
+target_link_libraries( ${PROJECT_NAME}.elf      freertos_kernel  
+                                                lvgl)
+
 
 set(HEX_FILE ${CMAKE_SOURCE_DIR}/build/${PROJECT_NAME}.hex)
 set(BIN_FILE ${CMAKE_SOURCE_DIR}/build/${PROJECT_NAME}.bin)
