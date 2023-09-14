@@ -10,7 +10,8 @@
         "rh_app_trace.h": "c",
         "rh_cmn_delay.h": "c",
         "rh_cmn.h": "c",
-        "rh_bsp.h": "c"
+        "rh_bsp.h": "c",
+        "freertos.h": "c"
     },
 
 
