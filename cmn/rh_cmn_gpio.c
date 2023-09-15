@@ -72,6 +72,15 @@ u32 rh_cmn_gpio__init( void){
     GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
     HAL_GPIO_Init( GPIOA, &GPIO_InitStructure);
 
+
+    GPIO_InitStructure.Pin       = (1<<8);
+    GPIO_InitStructure.Alternate = GPIO_AF0_MCO;
+    GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStructure.Pull      = GPIO_NOPULL;
+    GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+    HAL_GPIO_Init( GPIOA, &GPIO_InitStructure);
+    
+
     __GPIOB_CLK_ENABLE();
     GPIO_InitStructure.Pin       = (1<<2);
     GPIO_InitStructure.Mode      = GPIO_MODE_OUTPUT_PP;
@@ -88,6 +97,13 @@ u32 rh_cmn_gpio__init( void){
     HAL_GPIO_Init( GPIOB, &GPIO_InitStructure);
     
     __GPIOC_CLK_ENABLE();
+    GPIO_InitStructure.Pin       = (1<<9);
+    GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStructure.Alternate = GPIO_AF0_MCO;
+    GPIO_InitStructure.Pull      = GPIO_NOPULL;
+    GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+    HAL_GPIO_Init( GPIOC, &GPIO_InitStructure);
+
     GPIO_InitStructure.Pin       = ((1<<13));
     GPIO_InitStructure.Mode      = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStructure.Alternate = 0x00;
@@ -101,6 +117,9 @@ u32 rh_cmn_gpio__init( void){
     GPIO_InitStructure.Pull      = GPIO_PULLUP;
     GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
     HAL_GPIO_Init( GPIOC, &GPIO_InitStructure);
+    
+    /* Disable MCO frequency output */
+    rh_cmn_clk__mco_disable();
     
     return 0;
 }

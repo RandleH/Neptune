@@ -64,7 +64,8 @@ enum CmnCpuFreq rh_cmn_clk__get_cpu  ( void);
 
 
 u32 rh_cmn_clk__reset( void);
-u32 rh_cmn_clk__mco  ( u8 cmd);
+u32 rh_cmn_clk__mco_enable  ( void);
+u32 rh_cmn_clk__mco_disable ( void);
 
 
 u32          rh_cmn_clk__systick_enable( enum CmnSystickFreq frequency);

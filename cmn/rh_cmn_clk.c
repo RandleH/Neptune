@@ -211,11 +211,45 @@ u32 rh_cmn_clk__reset( void){
 
 /** 
  * @brief       Export CPU frequency signal to pin
- * @param       cmd 1=enable; 0=disable
- *              f_io = f_cpu/4
- * @return      Return 0 if success
+ *              PA8 := f_pll/4 MHz, where f_pll @ref enum CmnCpuFreq since pll is the clock source
+ *              PC9 := f_sys/4 MHz, where f_sys @ref enum CmnCpuFreq
+ *              !!!Warning!!! Pin C9 was NOT configed due to the hardware limitation
+ * @return      Always return 0
 */
-u32 rh_cmn_clk__mco  ( u8 cmd){
+u32 rh_cmn_clk__mco_enable ( void){
+    u32 tmp = RCC->CFGR;
+
+    /* MCO1 Enable */
+    tmp &= ~RCC_CFGR_MCO1_Msk;
+    tmp |= (3U<<RCC_CFGR_MCO1_Pos); /* 00: HSI; 01:LSE; 10: HSE; 11: PLL */
+    tmp &= ~RCC_CFGR_MCO1PRE_Msk;   
+    tmp |= (6U<<RCC_CFGR_MCO1PRE_Pos); /* 0xx: NDIV; 100: DIV2; 101: DIV3; 110: DIV4; 111: DIV5 */
+
+    /* MCO2 Enable (HW limitation) */
+    // tmp &= ~RCC_CFGR_MCO2_Msk;  
+    // tmp |= (0U<<RCC_CFGR_MCO2_Pos); /* 00: SycClk; 01: PLLI2S; 10: HSE; 11 PLL */
+    // tmp &= ~RCC_CFGR_MCO1PRE_Msk;
+    // tmp |= (6U<<RCC_CFGR_MCO2PRE_Pos); /* 0xx: NDIV; 100: DIV2; 101: DIV3; 110: DIV4; 111: DIV5 */
+
+    RCC->CFGR = tmp;
+    
+    GPIOA->MODER &= ~(GPIO_MODER_MODE8_Msk);
+    GPIOA->MODER |= 2U<<GPIO_MODER_MODE8_Pos;  /* 00: Input; 01: Output PP; 10: AF; 11: Analog */
+
+    GPIOC->MODER &= ~(GPIO_MODER_MODE9_Msk);
+    GPIOC->MODER |= 2U<<GPIO_MODER_MODE9_Pos;
+
+    return 0;
+}
+
+/** 
+ * @brief       Disable CPU frequency signal output
+ * @return      Always return 0
+*/
+u32 rh_cmn_clk__mco_disable ( void){
+    /* Set to input mode */
+    GPIOA->MODER &= ~(GPIO_MODER_MODE8_Msk);
+    GPIOC->MODER &= ~(GPIO_MODER_MODE9_Msk);
     return 0;
 }
 

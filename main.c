@@ -100,7 +100,8 @@ void vApplicationMallocFailedHook( void ){
 
 
 void task( void* param){
-
+    static u8 cnt = 10;
+    bool flag = true;
     while(1){
         vTaskDelay(1000);
         
@@ -115,6 +116,15 @@ void task( void* param){
         rh_cmn_usart__printf( "pong\n");
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
         taskEXIT_CRITICAL();
+
+        if( cnt==0){
+            if(flag==true){
+                rh_cmn_clk__mco_disable();
+                flag = false;
+            }
+        }else{
+            --cnt;
+        }
     }
 }
 
@@ -147,6 +157,8 @@ void task_init( void *param){
         rh_bsp_screen__init();
         vTaskDelay(10);
 
+        rh_cmn_clk__mco_enable();
+
         xTaskCreate( task_print_cpu_info, "USART task", 1024U, NULL, 40U, NULL);
         vTaskDelete(NULL);
     }
@@ -159,8 +171,6 @@ void task_init( void *param){
 int main( int argc, char const *argv[]){
     rh_cmn_clk__set_cpu( kCmnCpuFreq_96MHz);
     rh_cmn_clk__systick_enable( kCmnSystickFreq_1KHz);
-    
-    
 
     // rh_app_trace__init(NULL);
     // rh_app_trace__append_message( kTraceBusClock, "------------------------------------------------\n");
