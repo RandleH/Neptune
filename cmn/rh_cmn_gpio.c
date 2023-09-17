@@ -58,7 +58,7 @@
  *              B2       | PP   |        | PULLUP
  *              B13,B15  | AFPP | SPI2   | PULLUP
  *              C13      | PP   |        | PULLUP
- *              C14,C14  | PP   |        | PULLUP
+ *              C14,C15  | PP   |        | PULLUP
  * @return      Always return 0
 */
 u32 rh_cmn_gpio__init( void){
@@ -92,7 +92,7 @@ u32 rh_cmn_gpio__init( void){
     GPIO_InitStructure.Pin       = (1<<13)|(1<<15);
     GPIO_InitStructure.Mode      = GPIO_MODE_AF_PP;
     GPIO_InitStructure.Alternate = GPIO_AF5_SPI2;
-    GPIO_InitStructure.Pull      = GPIO_PULLUP;
+    GPIO_InitStructure.Pull      = GPIO_PULLDOWN;
     GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
     HAL_GPIO_Init( GPIOB, &GPIO_InitStructure);
     

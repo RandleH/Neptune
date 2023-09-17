@@ -79,7 +79,7 @@
 #define configUSE_COUNTING_SEMAPHORES     1
 #define configGENERATE_RUN_TIME_STATS     0
 
-
+#define configNUMBER_OF_CORES          (1U)
 
 
 /* Co-routine definitions. */

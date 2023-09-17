@@ -51,11 +51,6 @@
 #include "rh_cmn_clk.h"
 #include "rh_cmn_delay.h"
 
-#include "stm32f4xx.h"
-#include "stm32f4xx_hal_gpio.h"
-#include "stm32f4xx_hal_spi.h"
-#include "stm32f4xx_hal_rcc.h"
-#include "stm32f4xx_hal_dma.h"
 
 
 
@@ -109,9 +104,10 @@ extern "C"{
 
 
 
+/* Global variables ----------------------------------------------------------*/
+CmnSpi_t g_CmnSpi = {0};
+DMA_HandleTypeDef hspi2_dma = {0};
 
-static SPI_HandleTypeDef hspi2     = {0};
-static DMA_HandleTypeDef hspi2_dma = {0};
 
 /* Functions -----------------------------------------------------------------*/
 /** @defgroup Common 
@@ -173,6 +169,89 @@ static u8 rh_cmn_spi__calculate_div( enum CmnCpuFreq f_cpu, enum CmnSpiFreq f_sp
 }
 
 
+void rh_cmn_spi__task_send_dma( void *dummy){
+
+    extern u8 g_spi_flag;
+
+
+
+
+    // while(1){
+        // Enter Block State
+        // ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+
+        // Wake up and transmit
+        for( int i=0; i < g_CmnSpi.spi2.nTimes; ++i){
+            HAL_SPI_Transmit_DMA( &g_CmnSpi.spi2.hw_handle, (u8*)g_CmnSpi.spi2.data, g_CmnSpi.spi2.nItems);
+            // Wait transmission completed
+            // ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+
+            while( !g_spi_flag);
+            g_spi_flag = false;
+        }
+        
+        
+        
+        
+        // Notify Manager
+        // xTaskNotifyGive( g_CmnSpi.spi2.task_handle_dma_mgr);
+    // }
+}
+
+/**
+ * @brief       Send data using DMA channel.
+ * @ref         RM0383, Page 580 -- SPI communication using DMA
+ *              RM0383, Page 170 -- DMA Table
+ * @param       tx_buf      Data to be sent
+ * @param       len         Buffer length
+ * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
+ * @retval      Return 0 if params are OK
+ *              Return 1 if `pDone` is a NULL pointer
+ *              Return 2 if `buf` or `len` is 0. Nothing to send
+*/
+u32 rh_cmn_spi__send_dma( const u8 *buf, size_t nItems, size_t nTimes, u32 interval_delay_ms, u8* pDone){
+    if( nItems==0 || nTimes==0 || buf==NULL){
+        return 1;
+    }
+
+    g_CmnSpi.spi2.data   = buf;
+    g_CmnSpi.spi2.nItems = nItems;
+    g_CmnSpi.spi2.nTimes = nTimes;
+
+#warning "Use queue to save transfer info"
+    g_CmnSpi.spi2.task_handle_dma_mgr = xTaskGetCurrentTaskHandle();
+    
+    /* Send signal to trigger dma tx */
+    // xTaskNotifyGive( g_CmnSpi.spi2.task_handle_dma_tx);
+    
+    rh_cmn_spi__task_send_dma(NULL);
+    
+    
+
+    // Wait job to finish...
+    // ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+    
+    
+    
+    return 0;
+}
+
+/**
+ * @brief       Send data using DMA channel.
+ * @param       tx_buf      Data to be sent
+ * @param       len         Buffer length
+ * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
+ * @retval      Return 0 if params are OK
+ *              Return 1 if `pDone` is a NULL pointer
+ *              Return 2 if `buf` or `len` is 0. Nothing to send
+*/
+u32 rh_cmn_spi__recv_dma( u8 *rx_buf, size_t len, u8* pDone){
+    #warning "Unimplemented"
+    return 0;
+}
+
+
+
 /**
  * @brief       Send data. This function will block the program until transfer completed
  * @param       buf                 [in]    Data buffer pointer
@@ -219,66 +298,6 @@ u32 rh_cmn_spi__send_block( const u8 *buf, size_t nItems, size_t nTimes, u32 int
 
 
 
-/**
- * @brief       Send data value. This function will block the program until transfer completed
- * @retval      Return 0 if success
- *              Return 1 if nothing to transmit
-*/
-u32 rh_cmn_spi__send_value_block( const u8 value, size_t nTimes, u8* pDone){
-    #warning "Unverified"
-    if( pDone!=NULL){
-        *pDone = false;
-    }
-
-    if( nTimes==0){
-        return 1;
-    }
-
-    CLEAR_BIT( SPIx->CR1, SPI_CR1_DFF);
-    SET_BIT( SPIx->CR1, SPI_CR1_BIDIOE);
-    if( !READ_BIT( SPIx->CR1, SPI_CR1_SPE) ){
-        SET_BIT( SPIx->CR1, SPI_CR1_SPE);
-    }
-    
-    while( nTimes--){
-        SPIx->DR = value;
-        while( 0==READ_BIT( SPIx->SR, SPI_SR_TXE));  // Blocking function
-    }
-    
-    *pDone = true;
-    return 0;
-}
-
-/**
- * @brief       Send data using DMA channel.
- * @ref         RM0383, Page 580 -- SPI communication using DMA
- *              RM0383, Page 170 -- DMA Table
- * @param       tx_buf      Data to be sent
- * @param       len         Buffer length
- * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
- * @retval      Return 0 if params are OK
- *              Return 1 if `pDone` is a NULL pointer
- *              Return 2 if `buf` or `len` is 0. Nothing to send
-*/
-u32 rh_cmn_spi__send_dma( const u8 *tx_buf, size_t len, u8* pDone){
-
-    #warning "Unimplemented"
-    return 0;
-}
-
-/**
- * @brief       Send data using DMA channel.
- * @param       tx_buf      Data to be sent
- * @param       len         Buffer length
- * @param       pDone       Pointer to the flag. Buffer should remain valid when pDone is FALSE.             
- * @retval      Return 0 if params are OK
- *              Return 1 if `pDone` is a NULL pointer
- *              Return 2 if `buf` or `len` is 0. Nothing to send
-*/
-u32 rh_cmn_spi__recv_dma( u8 *rx_buf, size_t len, u8* pDone){
-    #warning "Unimplemented"
-    return 0;
-}
 
 
 /**
@@ -290,20 +309,44 @@ u32 rh_cmn_spi__recv_dma( u8 *rx_buf, size_t len, u8* pDone){
 */
 u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
     /* CLK Config */
-    __SPI2_CLK_ENABLE();
+    __HAL_RCC_SPI2_CLK_ENABLE();
+    __HAL_RCC_DMA1_CLK_ENABLE();
+
+    /* DMA config */
+    __HAL_LINKDMA( &g_CmnSpi.spi2.hw_handle, hdmatx, hspi2_dma);
+    
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.Channel             = DMA_CHANNEL_0;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.Direction           = DMA_MEMORY_TO_PERIPH;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.PeriphInc           = DMA_PINC_DISABLE;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.MemInc              = DMA_MINC_ENABLE;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.Mode                = DMA_NORMAL; // ?
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.Priority            = DMA_PRIORITY_VERY_HIGH;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.FIFOMode            = DMA_FIFOMODE_DISABLE;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.MemBurst            = DMA_MBURST_SINGLE;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.PeriphBurst         = DMA_PBURST_SINGLE;
+    g_CmnSpi.spi2.hw_handle.hdmatx->Instance                 = DMA1_Stream4;
+    
+
+    if( HAL_OK!=HAL_DMA_Init( g_CmnSpi.spi2.hw_handle.hdmatx)){
+        return 2;
+    }
+    HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5U, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
     
     /* SPI config */
-    hspi2.Instance               = SPIx;
-    hspi2.Init.Mode              = SPI_MODE_MASTER;
-    hspi2.Init.Direction         = SPI_DIRECTION_2LINES;
-    hspi2.Init.DataSize          = SPI_DATASIZE_8BIT;
-    hspi2.Init.CLKPolarity       = SPI_POLARITY_LOW;
-    hspi2.Init.CLKPhase          = SPI_PHASE_1EDGE;
-    hspi2.Init.NSS               = SPI_NSS_SOFT;
-    hspi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
-    hspi2.Init.TIMode            = SPI_TIMODE_DISABLE;
-    hspi2.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
-    hspi2.Init.CRCPolynomial     = 10;
+    g_CmnSpi.spi2.hw_handle.Instance               = SPI2;
+    g_CmnSpi.spi2.hw_handle.Init.Mode              = SPI_MODE_MASTER;
+    g_CmnSpi.spi2.hw_handle.Init.Direction         = SPI_DIRECTION_1LINE;
+    g_CmnSpi.spi2.hw_handle.Init.DataSize          = SPI_DATASIZE_8BIT;
+    g_CmnSpi.spi2.hw_handle.Init.CLKPolarity       = SPI_POLARITY_LOW;
+    g_CmnSpi.spi2.hw_handle.Init.CLKPhase          = SPI_PHASE_1EDGE;
+    g_CmnSpi.spi2.hw_handle.Init.NSS               = SPI_NSS_SOFT;
+    g_CmnSpi.spi2.hw_handle.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+    g_CmnSpi.spi2.hw_handle.Init.TIMode            = SPI_TIMODE_DISABLE;
+    g_CmnSpi.spi2.hw_handle.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+    g_CmnSpi.spi2.hw_handle.Init.CRCPolynomial     = 10;
 
     switch(rh_cmn_spi__calculate_div( rh_cmn_clk__get_cpu(), freq)){
         // f_AHB = f_cpu           ---> eg: 96MHz
@@ -311,47 +354,38 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
         // f_spi = f_APB / P2      ---> eg: 
         default:
         case 2:{    
-            hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;  // MUST set to `SPI_BAUDRATEPRESCALER_2`
+            g_CmnSpi.spi2.hw_handle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;  // MUST set to `SPI_BAUDRATEPRESCALER_2`
             break;
         }
         case 4:{
-            hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+            g_CmnSpi.spi2.hw_handle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
             break;
         }
         case 8:{
-            hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
+            g_CmnSpi.spi2.hw_handle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
             break;
         }
         case 16:{
-            hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+            g_CmnSpi.spi2.hw_handle.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
             break;
         }
     }
     
-    if( HAL_OK!=HAL_SPI_Init(&hspi2)){
+    if( HAL_OK!=HAL_SPI_Init(&g_CmnSpi.spi2.hw_handle)){
         return 1;
     }
 
-    /* DMA config */
-    hspi2.hdmatx = &hspi2_dma;
-    hspi2.hdmatx->Init.Channel             = DMA_CHANNEL_0;
-    hspi2.hdmatx->Init.Direction           = DMA_MEMORY_TO_PERIPH;
-    hspi2.hdmatx->Init.PeriphInc           = DMA_PINC_DISABLE;
-    hspi2.hdmatx->Init.MemInc              = DMA_MINC_ENABLE;
-    hspi2.hdmatx->Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hspi2.hdmatx->Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
-    hspi2.hdmatx->Init.Mode                = DMA_NORMAL; // ?
-    hspi2.hdmatx->Init.Priority            = DMA_PRIORITY_VERY_HIGH;
-    hspi2.hdmatx->Init.FIFOMode            = DMA_FIFOMODE_DISABLE;
-    hspi2.hdmatx->Init.MemBurst            = DMA_MBURST_SINGLE;
-    hspi2.hdmatx->Init.PeriphBurst         = DMA_PBURST_SINGLE;
-    hspi2.hdmatx->Instance                 = DMAx_STRx;
+    
 
-    if( HAL_OK!=HAL_DMA_Init( hspi2.hdmatx)){
-        return 2;
-    }
+    // g_CmnSpi.spi2.task_handle_dma_tx = xTaskCreateStatic(   rh_cmn_spi__task_send_dma, \
+    //                                                         "dma tx", \
+    //                                                         sizeof(g_CmnSpi.spi2.task_stack_dma_tx)/sizeof(StackType_t),\
+    //                                                         NULL,\
+    //                                                         40U,\
+    //                                                         g_CmnSpi.spi2.task_stack_dma_tx,\
+    //                                                         &g_CmnSpi.spi2.task_tcb_dma_tx);
+    
 
-    #warning "Unverified"
     return 0;
 }
 

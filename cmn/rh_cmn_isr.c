@@ -64,11 +64,7 @@ void UsageFault_Handler( void){
     }
 }
 
-// void SVC_Handler( void){
-//     while(1){
 
-//     }
-// }
 
 void DebugMon_Handler( void){
     while(1){
@@ -76,11 +72,18 @@ void DebugMon_Handler( void){
     }
 }
 
-// void PendSV_Handler( void){
-//     while(1){
+#if defined COSTOMIZED_PROGRAM
+void SVC_Handler( void){
+    while(1){
 
-//     }
-// }
+    }
+}
+
+void PendSV_Handler( void){
+    while(1){
+
+    }
+}
 
 
 /**
@@ -88,9 +91,12 @@ void DebugMon_Handler( void){
  *          Period: 1KHz
  * @return  (none)
 */
-// void SysTick_Handler( void){
+void SysTick_Handler( void){
     
-// }
+}
+#endif
+
+
 
 
 
@@ -113,7 +119,28 @@ void DMA1_Stream0_IRQHandler( void){}
 void DMA1_Stream1_IRQHandler( void){}
 void DMA1_Stream2_IRQHandler( void){}
 void DMA1_Stream3_IRQHandler( void){}
-void DMA1_Stream4_IRQHandler( void){}
+
+#include "stm32f4xx.h"
+#include "stm32f4xx_hal_gpio.h"
+#include "stm32f4xx_hal_spi.h"
+#include "stm32f4xx_hal_rcc.h"
+#include "stm32f4xx_hal_dma.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+#include "rh_cmn_spi.h"
+
+u8 g_spi_flag = false;
+void DMA1_Stream4_IRQHandler( void){
+    HAL_DMA_IRQHandler(g_CmnSpi.spi2.hw_handle.hdmatx);
+    
+#warning "Add transmission check"
+    g_spi_flag = true;
+    // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    // vTaskNotifyGiveFromISR( g_CmnSpi.spi2.task_handle_dma_tx, &xHigherPriorityTaskWoken);
+    // portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
+
 void DMA1_Stream5_IRQHandler( void){}
 void DMA1_Stream6_IRQHandler( void){}
 void ADC_IRQHandler( void){}        

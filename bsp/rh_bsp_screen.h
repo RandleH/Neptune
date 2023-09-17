@@ -25,6 +25,9 @@
 #include "rh_common.h"
 
 
+/* Exported macro ------------------------------------------------------------*/
+#define CFG_GRAM_SIZE               (240*10)
+
 
 /* Exported types ------------------------------------------------------------*/
 typedef u16   BspScreenPixel_t;
@@ -33,6 +36,9 @@ typedef u16   BspScreenPixel_t;
 
 /* Functions -----------------------------------------------------------------*/
 u32 rh_bsp_screen__init( void);
+u32 rh_bsp_screen__set_dma_transfer( void);
+u32 rh_bsp_screen__set_blk_transfer( void);
+
 u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u16 ye);
 
 

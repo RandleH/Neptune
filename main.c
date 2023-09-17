@@ -166,9 +166,13 @@ void task_init( void *param){
 
 
 
-
+#include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_cortex.h"
 
 int main( int argc, char const *argv[]){
+
+    HAL_NVIC_SetPriorityGrouping( NVIC_PRIORITYGROUP_4 );
+
     rh_cmn_clk__set_cpu( kCmnCpuFreq_96MHz);
     rh_cmn_clk__systick_enable( kCmnSystickFreq_1KHz);
 
@@ -181,7 +185,7 @@ int main( int argc, char const *argv[]){
     
 
     
-    xTaskCreate( task_init, "Init task", 4096U, NULL, 40U, NULL);
+    xTaskCreate( task_init, "Init task", 8192U, NULL, 40U, NULL);
     
     
     vTaskStartScheduler();

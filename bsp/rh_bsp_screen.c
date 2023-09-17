@@ -20,11 +20,14 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdlib.h>
+#include <string.h>
 #include "stm32f4xx.h"
 #include "rh_bsp_screen.h"
 #include "rh_cmn_gpio.h"
 #include "rh_cmn_spi.h"
 #include "rh_cmn_delay.h"
+
+#include "rh_cmn_usart.h"       /* Debug usage only !! */
 
 
 
@@ -54,6 +57,21 @@
     }while(0)
 
 
+
+enum BspScreenTransferMode{
+    kBspScreenTransferMode__BLK = 0,
+    kBspScreenTransferMode__DMA = 1,
+};
+
+typedef struct BspScreen{
+    enum BspScreenTransferMode tx_mode;
+    BspScreenPixel_t           gram[CFG_GRAM_SIZE];
+}BspScreen_t;
+
+static struct BspScreen s_context = {0};
+
+
+
 /* Private functions ---------------------------------------------------------*/
 /**
  * @brief       
@@ -74,6 +92,9 @@ static void rh_bsp_screen__parse( const u8 *code, size_t len){
         len  -= nItem;
     }
 }
+
+
+
 
 
 
@@ -158,6 +179,16 @@ u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u
     return 0;
 }
 
+u32 rh_bsp_screen__set_dma_transfer( void){
+    s_context.tx_mode = kBspScreenTransferMode__DMA;
+    return 0;
+}
+
+u32 rh_bsp_screen__set_blk_transfer( void){
+    s_context.tx_mode = kBspScreenTransferMode__BLK;
+    return 0;
+}
+
 
 /**
  * @brief       Fill screen with single color
@@ -190,14 +221,32 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
             return 2;
     }
 
-    PIN_CS(0);
-    rh_bsp_screen__area( xs, ys, xe, ye);
-    
-    u8 done = false;
-    PIN_DC(1);
-    rh_cmn_spi__send_block( buf, sizeof(color), (xe-xs+1)*(ye-ys+1), 0, &done);
 
-    PIN_CS(1);
+    if( s_context.tx_mode==kBspScreenTransferMode__BLK ){
+        u8 done = false;
+        rh_bsp_screen__area( xs, ys, xe, ye);
+        PIN_DC(1);
+        rh_cmn_spi__send_block( buf, sizeof(color), (xe-xs+1)*(ye-ys+1), 0, &done);
+        if(!done){
+            #warning "Note: Do something"
+        }
+        PIN_CS(1);
+    }else if( s_context.tx_mode==kBspScreenTransferMode__DMA ){
+        for( int i=0; i<CFG_GRAM_SIZE; i+=2){
+            s_context.gram[i] = color;
+        }
+
+        rh_bsp_screen__area( xs, ys, xe, ye);
+        PIN_DC(1);
+        u32 total_pix = (xe-xs+1)*(ye-ys+1);
+        u32 nItems = (total_pix > CFG_GRAM_SIZE)? CFG_GRAM_SIZE : total_pix;
+        u32 nTimes = (total_pix > CFG_GRAM_SIZE)? total_pix/CFG_GRAM_SIZE : 1;
+        rh_cmn_spi__send_dma( (u8*)s_context.gram, nItems*sizeof(BspScreenPixel_t), nTimes, 0, NULL);
+        rh_cmn_spi__send_dma( (u8*)s_context.gram, (total_pix % CFG_GRAM_SIZE)*sizeof(BspScreenPixel_t), 1, 0, NULL);
+        PIN_CS(1);
+    }
+
+    
 
     return 0;
 }
@@ -332,11 +381,12 @@ u32 rh_bsp_screen__init( void){
         u16 full;
     }color;
 
-    color.channel.R = 20; // [0:31]
-    color.channel.G = 40; // [0:63]
-    color.channel.B = 20; // [0:31]
-
-    rh_bsp_screen__fill( color.full, 0, 0, 240, 240);
+    color.channel.R =  0; // [0:31]
+    color.channel.G =  0; // [0:63]
+    color.channel.B = 30; // [0:31]
+    
+    rh_bsp_screen__set_dma_transfer();
+    rh_bsp_screen__fill( color.full, 0, 0, 240-1, 240-1);
 
     PIN_CS(1);
     return 0;
