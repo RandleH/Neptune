@@ -79,11 +79,14 @@ include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Driv
                                         ${freertos_include}
                                         ${CMAKE_SOURCE_DIR}
                                         ${CMAKE_SOURCE_DIR}/app
+                                        ${CMAKE_SOURCE_DIR}/app/component/gui
                                         ${CMAKE_SOURCE_DIR}/app/component/time
+                                        ${CMAKE_SOURCE_DIR}/app/component/trace
                                         ${CMAKE_SOURCE_DIR}/app/component/util
                                         ${CMAKE_SOURCE_DIR}/bsp
                                         ${CMAKE_SOURCE_DIR}/cmn)
 
+aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/gui     source_app_gui)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/util    source_app_util)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/time    source_app_time)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/trace   source_app_trace)
@@ -99,6 +102,7 @@ add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 add_executable( ${PROJECT_NAME}.elf                     ${CMAKE_SOURCE_DIR}/main.c
                                                         ${startup_script}
                                                         ${cmsis_script}
+                                                        ${source_app_gui}
                                                         ${source_app_util}
                                                         ${source_app_time}
                                                         ${source_app_trace}

@@ -18,44 +18,23 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "rh_bsp_led.h"
-#include "rh_cmn_mem.h"
-#include "rh_cmn_gpio.h"
+#include "stm32f411xe.h"        /* Description - STM32 Library */
 
-#include "stm32f411xe.h"
+#include "rh_bsp_led.h"         /* Path - ${PRJ_DIR}/bsp/rh_bsp.h */
+#include "rh_cmn_mem.h"         /* Path - ${PRJ_DIR}/cmn/rh_cmn_mem.h */
+#include "rh_cmn_gpio.h"        /* Path - ${PRJ_DIR}/cmn/rh_cmn_gpio.h */
 
 
 
 
 
 /* Private define ------------------------------------------------------------*/
-
-
-
-// #define LED_R_CLK_ENABLE()     \
-//     do{\
-//         \
-//     }while(0)\
-
-
-// #define LED_G_CLK_ENABLE()     \
-//     do{\
-//         \
-//     }while(0)\
-
-// #define LED_B_CLK_ENABLE()     \
-//     do{\
-//         \
-//     }while(0)\
-
 #define LED_R_GPIOx             GPIOA
 #define LED_G_GPIOx             GPIOB
 #define LED_B_GPIOx             GPIOC
 #define LED_R_PINx              (11U)
 #define LED_G_PINx              (12U)
 #define LED_B_PINx              (13U)
-
-
 
 
 #define CHECK_PARAM( pBspLedStruct, M_BSP_LED__xxxx )\
@@ -112,6 +91,7 @@ pBspLed rh_bsp_led__init( void){
     return ptr;
 }
 
+
 u32     rh_bsp_led__switch( pBspLed pContext, u32 M_BSP_LED__xxxx, u32 delay, u8 cmd){
     CHECK_PARAM(pContext, M_BSP_LED__xxxx);
     
@@ -148,3 +128,5 @@ u32    rh_bsp_led__deinit( pBspLed pContext){
     rh_cmn_mem__free(pContext);
     return 0;
 }
+
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

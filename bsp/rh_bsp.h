@@ -10,5 +10,14 @@
 
 
 
+enum BspConst{
+    kBspConst__SCREEN_GRAM_SIZE          = 240*10 ,\
+    kBspConst__SCREEN_WIDTH              = 240    ,\
+    kBspConst__SCREEN_HEIGHT             = 240    ,\
+    kBspConst__SCREEN_COLOR_DEPTH        = 16
+};
+
+
+
 
 #endif

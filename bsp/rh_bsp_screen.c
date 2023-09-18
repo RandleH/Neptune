@@ -19,15 +19,16 @@
 
 
 /* Includes ------------------------------------------------------------------*/
-#include <stdlib.h>
-#include <string.h>
-#include "stm32f4xx.h"
-#include "rh_bsp_screen.h"
-#include "rh_cmn_gpio.h"
-#include "rh_cmn_spi.h"
-#include "rh_cmn_delay.h"
+#include <stdlib.h>         /* Description - C Standard Library */
+#include <string.h>         /* Description - C Standard Library */
 
-#include "rh_cmn_usart.h"       /* Debug usage only !! */
+#include "stm32f4xx.h"      /* Description - STM32 Library */
+
+#include "rh_bsp.h"         /* Path - ${PRJ_DIR}/bsp/rh_bsp.h */
+#include "rh_cmn_gpio.h"    /* Path - ${PRJ_DIR}/cmn/rh_cmn_gpio.h */
+#include "rh_cmn_spi.h"     /* Path - ${PRJ_DIR}/cmn/rh_cmn_spi.h */
+#include "rh_cmn_delay.h"   /* Path - ${PRJ_DIR}/cmn/rh_cmn_delay.h */
+
 
 
 
@@ -65,7 +66,7 @@ enum BspScreenTransferMode{
 
 typedef struct BspScreen{
     enum BspScreenTransferMode tx_mode;
-    BspScreenPixel_t           gram[CFG_GRAM_SIZE];
+    BspScreenPixel_t           gram[kBspConst__SCREEN_GRAM_SIZE];
 }BspScreen_t;
 
 static struct BspScreen s_context = {0};
@@ -204,17 +205,17 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
         }
         PIN_CS(1);
     }else if( s_context.tx_mode==kBspScreenTransferMode__DMA ){
-        for( int i=0; i<CFG_GRAM_SIZE; i+=2){
+        for( int i=0; i<kBspConst__SCREEN_GRAM_SIZE; i+=2){
             s_context.gram[i] = color;
         }
 
         rh_bsp_screen__area( xs, ys, xe, ye);
         PIN_DC(1);
         u32 total_pix = (xe-xs+1)*(ye-ys+1);
-        u32 nItems = (total_pix > CFG_GRAM_SIZE)? CFG_GRAM_SIZE : total_pix;
-        u32 nTimes = (total_pix > CFG_GRAM_SIZE)? total_pix/CFG_GRAM_SIZE : 1;
+        u32 nItems = (total_pix > kBspConst__SCREEN_GRAM_SIZE)? kBspConst__SCREEN_GRAM_SIZE : total_pix;
+        u32 nTimes = (total_pix > kBspConst__SCREEN_GRAM_SIZE)? total_pix/kBspConst__SCREEN_GRAM_SIZE : 1;
         rh_cmn_spi__send_dma( (u8*)s_context.gram, nItems*sizeof(BspScreenPixel_t), nTimes, 0, NULL);
-        rh_cmn_spi__send_dma( (u8*)s_context.gram, (total_pix % CFG_GRAM_SIZE)*sizeof(BspScreenPixel_t), 1, 0, NULL);
+        rh_cmn_spi__send_dma( (u8*)s_context.gram, (total_pix % kBspConst__SCREEN_GRAM_SIZE)*sizeof(BspScreenPixel_t), 1, 0, NULL);
         PIN_CS(1);
     }
 

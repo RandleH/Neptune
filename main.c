@@ -189,6 +189,9 @@ void task_init( void *param){
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_cortex.h"
 
+
+#include "rh_app.h"
+
 int main( int argc, char const *argv[]){
 
     HAL_NVIC_SetPriorityGrouping( NVIC_PRIORITYGROUP_4 );

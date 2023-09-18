@@ -3,8 +3,9 @@
 
 
 
-#include "component/trace/rh_app_trace.h"
-#include "component/util/rh_app_utility.h"
-#include "component/time/rh_app_time.h"
+#include "rh_app_trace.h"
+#include "rh_app_utility.h"
+#include "rh_app_time.h"
+#include "rh_app_gui.h"
 
 #endif
