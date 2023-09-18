@@ -130,15 +130,12 @@ void DMA1_Stream3_IRQHandler( void){}
 
 #include "rh_cmn_spi.h"
 
-u8 g_spi_flag = false;
 void DMA1_Stream4_IRQHandler( void){
+    // 0x40026000 -> DMA1
+    // 0x40026070 -> DMA1_Stream4
+
     HAL_DMA_IRQHandler(g_CmnSpi.spi2.hw_handle.hdmatx);
     
-#warning "Add transmission check"
-    g_spi_flag = true;
-    // BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    // vTaskNotifyGiveFromISR( g_CmnSpi.spi2.task_handle_dma_tx, &xHigherPriorityTaskWoken);
-    // portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 
 void DMA1_Stream5_IRQHandler( void){}

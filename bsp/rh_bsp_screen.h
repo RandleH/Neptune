@@ -26,7 +26,10 @@
 
 
 /* Exported macro ------------------------------------------------------------*/
+#define CFG_SCREEN_WIDTH            (240)
+#define CFG_SCREEN_HEIGHT           (240)
 #define CFG_GRAM_SIZE               (240*10)
+#define CFG_COLOR_DEPTH             (16)
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -38,7 +41,6 @@ typedef u16   BspScreenPixel_t;
 u32 rh_bsp_screen__init( void);
 u32 rh_bsp_screen__set_dma_transfer( void);
 u32 rh_bsp_screen__set_blk_transfer( void);
-
 u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u16 ye);
 
 

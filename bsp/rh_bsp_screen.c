@@ -74,9 +74,12 @@ static struct BspScreen s_context = {0};
 
 /* Private functions ---------------------------------------------------------*/
 /**
- * @brief       
+ * @brief       Internal function. Given a predefined transmission code and transfer it in blocking mode. DMA bypass.
+ * @param       code    [in]    Code buffer
+ * @param       len     [in]    Buffer length
+ * @return      (none)
 */
-static void rh_bsp_screen__parse( const u8 *code, size_t len){
+static inline void rh_bsp_screen__parse( const u8 *code, size_t len){
     while( len!=0 ){
         PIN_DC( *code++);       /* Determine command or data */
         --len;
@@ -95,10 +98,10 @@ static void rh_bsp_screen__parse( const u8 *code, size_t len){
 
 
 
-
-
-
-
+/**
+ * @brief       Internal function. Hardware reset screen. Cycle waste: 300ms
+ * @return      (none)
+*/
 static void rh_bsp_screen__reset( void){
     PIN_RST(1);
     DELAY_MS(100);
@@ -108,7 +111,14 @@ static void rh_bsp_screen__reset( void){
     DELAY_MS(100);
 }
 
-
+/**
+ * @brief       Internal function. Select screen area. DMA bypass.
+ * @param       x0  Start X
+ * @param       y0  Start Y
+ * @param       x1  End X
+ * @param       y1  End Y
+ * @return      (none)
+*/
 static void rh_bsp_screen__area( u8 x0, u8 y0, u8 x1, u8 y1){
     const u8 code[] = {
         /* Set the X coordinates */
@@ -126,9 +136,10 @@ static void rh_bsp_screen__area( u8 x0, u8 y0, u8 x1, u8 y1){
 
 
 /**
- * @brief       Change Scan Direction
+ * @brief       Change scan direction. DMA bypass.
  * @param       mode    @ref 0: L->R; U->D;
  *                      @ref 1: R->L; D->U;
+ * @return      (none)
 */
 static void rh_bsp_screen__scan_mode( u8 mode){
     u8 code[] = {
@@ -150,44 +161,6 @@ static void rh_bsp_screen__scan_mode( u8 mode){
     rh_bsp_screen__parse( code, sizeof(code)/sizeof(*code));  
 }
 
-/**
- * @brief       Flush screen from a given buffer
- *              Length of the buffer must be valid great or equal than (xe-xs+1)*(ye-ys+1)
- * @return      Return 0, if success
- *              Return 1, if area params are wrong
- *              Return 2, if buffer pointer is NULL
-*/
-u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u16 ye){
-    if( xs>xe || ys>ye ){
-        return 1;
-    }
-
-    if( buf==NULL){
-        return 2;
-    }
-
-    PIN_CS(0);
-    rh_bsp_screen__area( xs, ys, xe, ye);
-    
-    u8 done = false;
-
-    PIN_DC(1);
-    rh_cmn_spi__send_block( (const u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t), 1, 0, &done);
-
-    PIN_CS(1);
-
-    return 0;
-}
-
-u32 rh_bsp_screen__set_dma_transfer( void){
-    s_context.tx_mode = kBspScreenTransferMode__DMA;
-    return 0;
-}
-
-u32 rh_bsp_screen__set_blk_transfer( void){
-    s_context.tx_mode = kBspScreenTransferMode__BLK;
-    return 0;
-}
 
 
 /**
@@ -200,7 +173,7 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
     if( xs>xe || ys>ye ){
         return 1;
     }
-    
+
     u8 *buf = alloca(sizeof(BspScreenPixel_t));
 
     switch( sizeof(color)){
@@ -220,7 +193,6 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
         default:
             return 2;
     }
-
 
     if( s_context.tx_mode==kBspScreenTransferMode__BLK ){
         u8 done = false;
@@ -246,19 +218,18 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
         PIN_CS(1);
     }
 
-    
-
     return 0;
 }
 
 
 
+
+
+
 /* Functions -----------------------------------------------------------------*/
 /**
- * @brief       Initialize screen         \n
- *              Estimated Duration: 500ms \n
- * 
- * @return      
+ * @brief       Initialize screen. Estimated Duration: 500ms. Reset -> Initialize -> DMA mode
+ * @return      Always return 0
  * 
 */
 u32 rh_bsp_screen__init( void){
@@ -371,7 +342,6 @@ u32 rh_bsp_screen__init( void){
 
     rh_bsp_screen__scan_mode(0);
     
-
     union{
         struct{
             u16 B : 5;
@@ -381,15 +351,72 @@ u32 rh_bsp_screen__init( void){
         u16 full;
     }color;
 
-    color.channel.R =  0; // [0:31]
-    color.channel.G =  0; // [0:63]
-    color.channel.B = 30; // [0:31]
-    
-    rh_bsp_screen__set_dma_transfer();
-    rh_bsp_screen__fill( color.full, 0, 0, 240-1, 240-1);
+    color.channel.R = 31; // [0:31]
+    color.channel.G = 63; // [0:63]
+    color.channel.B = 31; // [0:31]
 
+    rh_bsp_screen__set_blk_transfer();
+    rh_bsp_screen__fill( color.full, 0, 0, CFG_SCREEN_WIDTH-1, CFG_SCREEN_HEIGHT-1);
+
+    rh_bsp_screen__set_dma_transfer();
+    
     PIN_CS(1);
     return 0;
 }
 
 
+/**
+ * @brief       Set screen transfer mode to DMA. Transfer mode only affect on data transmission not control command.
+ *              Set larger gram buffer will give a significant boost
+ * @return      Always return 0
+*/
+u32 rh_bsp_screen__set_dma_transfer( void){
+    s_context.tx_mode = kBspScreenTransferMode__DMA;
+    return 0;
+}
+
+/**
+ * @brief       Set screen transfer mode to blocking. Transfer mode only affect on data transmission not control command.
+ * @return      Always return 0
+*/
+u32 rh_bsp_screen__set_blk_transfer( void){
+    s_context.tx_mode = kBspScreenTransferMode__BLK;
+    return 0;
+}
+
+
+
+/**
+ * @brief       Flush screen from a given buffer
+ *              Length of the buffer must be valid great or equal than (xe-xs+1)*(ye-ys+1)
+ * @return      Return 0, if success
+ *              Return 1, if area params are wrong
+ *              Return 2, if buffer pointer is NULL
+*/
+u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u16 ye){
+    if( xs>xe || ys>ye ){
+        return 1;
+    }
+
+    if( buf==NULL){
+        return 2;
+    }
+
+    PIN_CS(0);
+    rh_bsp_screen__area( xs, ys, xe, ye);
+
+    PIN_DC(1);
+    if( s_context.tx_mode==kBspScreenTransferMode__DMA ){
+        rh_cmn_spi__send_dma( (u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t), 1, 0, NULL);
+    }else if( s_context.tx_mode==kBspScreenTransferMode__BLK){
+        u8 done = false;
+        rh_cmn_spi__send_block( (const u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t), 1, 0, &done);
+        if( !done){
+            #warning "Do something"
+        }
+    }
+
+    PIN_CS(1);
+
+    return 0;
+}

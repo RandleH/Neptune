@@ -129,6 +129,25 @@ void task( void* param){
 }
 
 
+#include <wchar.h>
+
+u16 g_Gram[30*30] = {0};
+
+
+
+
+void task_switch_color( void *param){
+    const u16 color[] = { 0xF800, 0x07E0, 0x001F};
+    u8 idx = 0;
+    while(1){
+        rh_cmn_memset16( g_Gram, color[idx%3], 30*30);
+        rh_bsp_screen__flush( g_Gram, 200, 100, 230-1, 130-1);
+        ++idx;
+        vTaskDelay(1000);
+    }
+}
+
+
 void task_print_cpu_info( void* param){
     while(1){
         taskENTER_CRITICAL();
@@ -160,6 +179,7 @@ void task_init( void *param){
         rh_cmn_clk__mco_enable();
 
         xTaskCreate( task_print_cpu_info, "USART task", 1024U, NULL, 40U, NULL);
+        xTaskCreate( task_switch_color,   "Screen task", 1024U, NULL, 45U, NULL);
         vTaskDelete(NULL);
     }
 }

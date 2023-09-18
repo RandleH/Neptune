@@ -55,6 +55,32 @@ void  rh_cmn_mem__static_free( void* ptr){
 }
 
 
+/**
+ * @brief       Memory set in 16bits
+ * @param       buf [in]    Pointer. No boundary check.
+ * @param       ch  [in]    Set value
+ * @param       len [in]    Length of buffer. Count in 16 Bits (word).
+ * @return      Returns its first argument
+*/
+void* rh_cmn_memset16( void* buf, u16 ch, size_t len){
+#warning "Needs optimize"
+#if 0
+   asm volatile(
+        "LOOP:                  \n"
+        "stmia  r1!,    {r0}    \n"
+        "subs   r2, r2, #1      \n"
+        "bne    LOOP            \n"
+   );
+   return buf;
+#endif
+    
+    u16 *ptr = (u16*)buf;
+    while(len--){
+        *ptr++ = ch;
+    }
+    return buf;
+}
+
 
 #ifdef __cplusokus
 }

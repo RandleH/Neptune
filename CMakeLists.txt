@@ -97,7 +97,6 @@ add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
 
 add_executable( ${PROJECT_NAME}.elf                     ${CMAKE_SOURCE_DIR}/main.c
-                                                        ${CMAKE_SOURCE_DIR}/main_dma.c 
                                                         ${startup_script}
                                                         ${cmsis_script}
                                                         ${source_app_util}

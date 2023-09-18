@@ -169,34 +169,32 @@ static u8 rh_cmn_spi__calculate_div( enum CmnCpuFreq f_cpu, enum CmnSpiFreq f_sp
 }
 
 
-void rh_cmn_spi__task_send_dma( void *dummy){
-
-    extern u8 g_spi_flag;
 
 
+static void rh_cmn_spi__tx_error_callback( SPI_HandleTypeDef * hdma){
 
-
-    // while(1){
-        // Enter Block State
-        // ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-
-        // Wake up and transmit
-        for( int i=0; i < g_CmnSpi.spi2.nTimes; ++i){
-            HAL_SPI_Transmit_DMA( &g_CmnSpi.spi2.hw_handle, (u8*)g_CmnSpi.spi2.data, g_CmnSpi.spi2.nItems);
-            // Wait transmission completed
-            // ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-
-            while( !g_spi_flag);
-            g_spi_flag = false;
-        }
-        
-        
-        
-        
-        // Notify Manager
-        // xTaskNotifyGive( g_CmnSpi.spi2.task_handle_dma_mgr);
-    // }
 }
+
+static void rh_cmn_spi__tx_half_callback( SPI_HandleTypeDef * hdma){
+    
+}
+
+/**
+ * @brief       This callback function ONLY run in ISR 
+ * @return      (none)
+*/
+static void rh_cmn_spi__tx_completed_callback( SPI_HandleTypeDef * hspi){
+    if( hspi == &g_CmnSpi.spi2.hw_handle){
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        vTaskNotifyGiveFromISR( g_CmnSpi.spi2.task_handle_dma_mgr, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+    }
+}
+
+
+
+
+
 
 /**
  * @brief       Send data using DMA channel.
@@ -220,18 +218,16 @@ u32 rh_cmn_spi__send_dma( const u8 *buf, size_t nItems, size_t nTimes, u32 inter
 
 #warning "Use queue to save transfer info"
     g_CmnSpi.spi2.task_handle_dma_mgr = xTaskGetCurrentTaskHandle();
-    
-    /* Send signal to trigger dma tx */
-    // xTaskNotifyGive( g_CmnSpi.spi2.task_handle_dma_tx);
-    
-    rh_cmn_spi__task_send_dma(NULL);
-    
-    
+        
 
-    // Wait job to finish...
-    // ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-    
-    
+    for( int i=0; i<g_CmnSpi.spi2.nTimes; ++i){
+        HAL_SPI_Transmit_DMA( &g_CmnSpi.spi2.hw_handle, (u8*)g_CmnSpi.spi2.data, g_CmnSpi.spi2.nItems);
+        
+        /* Wait transmission completed */
+        ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+
+        /* Wake up and Continue */
+    }
     
     return 0;
 }
@@ -321,7 +317,7 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
     g_CmnSpi.spi2.hw_handle.hdmatx->Init.MemInc              = DMA_MINC_ENABLE;
     g_CmnSpi.spi2.hw_handle.hdmatx->Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
     g_CmnSpi.spi2.hw_handle.hdmatx->Init.MemDataAlignment    = DMA_MDATAALIGN_BYTE;
-    g_CmnSpi.spi2.hw_handle.hdmatx->Init.Mode                = DMA_NORMAL; // ?
+    g_CmnSpi.spi2.hw_handle.hdmatx->Init.Mode                = DMA_NORMAL; 
     g_CmnSpi.spi2.hw_handle.hdmatx->Init.Priority            = DMA_PRIORITY_VERY_HIGH;
     g_CmnSpi.spi2.hw_handle.hdmatx->Init.FIFOMode            = DMA_FIFOMODE_DISABLE;
     g_CmnSpi.spi2.hw_handle.hdmatx->Init.MemBurst            = DMA_MBURST_SINGLE;
@@ -332,6 +328,15 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
     if( HAL_OK!=HAL_DMA_Init( g_CmnSpi.spi2.hw_handle.hdmatx)){
         return 2;
     }
+
+
+    
+
+    // Or use `HAL_DMA_RegisterCallback` to complete same functionality
+
+
+    // DMA stream x configuration register (DMA_SxCR) (x = 0..7)
+    // RM0383 Page: 190
     HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5U, 0);
     HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
     
@@ -375,16 +380,11 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
         return 1;
     }
 
-    
-
-    // g_CmnSpi.spi2.task_handle_dma_tx = xTaskCreateStatic(   rh_cmn_spi__task_send_dma, \
-    //                                                         "dma tx", \
-    //                                                         sizeof(g_CmnSpi.spi2.task_stack_dma_tx)/sizeof(StackType_t),\
-    //                                                         NULL,\
-    //                                                         40U,\
-    //                                                         g_CmnSpi.spi2.task_stack_dma_tx,\
-    //                                                         &g_CmnSpi.spi2.task_tcb_dma_tx);
-    
+    /* Must set `USE_HAL_SPI_REGISTER_CALLBACKS` to 1 in "cfg/stm32f4xx_hal_conf.h" */
+    /* Must run after `HAL_SPI_Init()` was called */
+    g_CmnSpi.spi2.hw_handle.TxHalfCpltCallback     = rh_cmn_spi__tx_half_callback;
+    g_CmnSpi.spi2.hw_handle.TxCpltCallback         = rh_cmn_spi__tx_completed_callback;
+    g_CmnSpi.spi2.hw_handle.ErrorCallback          = rh_cmn_spi__tx_error_callback;
 
     return 0;
 }

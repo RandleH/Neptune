@@ -35,6 +35,10 @@ void  rh_cmn_mem__free( void* );
 void* rh_cmn_mem__static_malloc( size_t nBytes );
 void  rh_cmn_mem__static_free( void* ptr);
 
+
+void* rh_cmn_memset16( void* buf, u16 ch, size_t len);
+
+
 #ifdef __cplusokus
 }
 #endif

@@ -419,4 +419,42 @@ int rh_rtc__init( bool reset, u16 yyyy, u8 mm, u8 dd, u8 hh, u8 min, u8 ss, u8 w
     
     return 0;
 }
+
+
+
+[Stash Code]: DMA Handler ********************************************************
+
+    u32 reg_isr = DMA1->HISR;
+    u32 reg_cr  = DMA1_Stream4->CR;
+
+    /* Check Interrupt Type */
+    if( (reg_isr & DMA_HISR_HTIF4)  // Half Transfer Interrupt Flag
+        &&
+        (reg_cr & DMA_SxCR_HTIE)    // Half Transfer Interrupt Enabled
+    ){   
+        /* Clear Half Transfer Interrupt */
+        DMA1->HIFCR = DMA_HIFCR_CHTIF4;
+    }
+
+    if( reg_isr & DMA_HISR_TCIF4){   // Transfer Completed Interrupt Flag
+        /* Clear Transfer Completed Interrupt */
+        DMA1->HIFCR = DMA_HIFCR_CTCIF4;
+
+        hdma->State = HAL_DMA_STATE_READY;
+        g_spi_flag = true;
+    }
+
+    if( (reg_isr & DMA_HISR_TEIF4)   // Transfer Error Interrupt Flag 
+        || 
+        (reg_isr & DMA_HISR_DMEIF4)  // Direct Mode Error Interrupt Flag 
+        ||
+        (reg_isr & DMA_HISR_FEIF4)   // FIFO Error Interrupt Flag
+    ){
+        /* Disable DMA1 Stream 4 */
+        DMA1_Stream4->CR &= ~DMA_SxCR_EN;   
+        while((DMA1_Stream4->CR & DMA_SxCR_EN) != 0);
+
+        /* Generate Error Code */
+        #warning "Do something"
+    }
 /************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

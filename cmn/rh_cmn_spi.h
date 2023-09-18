@@ -61,10 +61,7 @@ typedef struct CmnSpi{
     struct{
         const u8           *data;
         u32                 nItems;
-        u32                 nTimes;
-        StackType_t         task_stack_dma_tx[1024U];
-        StaticTask_t        task_tcb_dma_tx;
-        TaskHandle_t        task_handle_dma_tx;
+        u32                 nTimes; 
 
         TaskHandle_t        task_handle_dma_mgr;
         TaskHandle_t        task_handle_blk;
