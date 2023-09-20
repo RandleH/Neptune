@@ -52,7 +52,6 @@ typedef struct CmnSpi{
         const u8           *data;
         u32                 nItems;
         u32                 nTimes;
-        TaskHandle_t        task_handle_dma_tx;
         TaskHandle_t        task_handle_dma_mgr;
         TaskHandle_t        task_handle_blk;
         SPI_HandleTypeDef   hw_handle;
@@ -62,7 +61,6 @@ typedef struct CmnSpi{
         const u8           *data;
         u32                 nItems;
         u32                 nTimes; 
-
         TaskHandle_t        task_handle_dma_mgr;
         TaskHandle_t        task_handle_blk;
         SPI_HandleTypeDef   hw_handle;
@@ -90,3 +88,5 @@ u32 rh_cmn_spi__deinit     ( void);
 
 
 #endif
+
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

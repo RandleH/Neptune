@@ -56,12 +56,16 @@
 #include "rh_common.h"
 
 
+enum CmnConst{
+    kCmnConst__USART_BUFFER_SIZE_POW_2   = 10     ,\
+    kCmnConst__USART_RX_IRQ_PRIORITY     = 7      ,\
+    kCmnConst__USART_TX_IRQ_PRIORITY     = 7      ,\
+    kCmnConst__USART_BAUDRATE            = 115200 ,\
+    kCmnConst__SPI2_RX_IRQ_PRIORITY      = 5      ,\
+    kCmnConst__SPI2_TX_IRQ_PRIORITY      = 5      
+};
 
-typedef struct{
-    volatile u64 clockTick;
-}CmnData;
-extern CmnData  gCommonData;
-
+#warning "Unused: kCmnConst__USART_BAUDRATE"
 
 
 #include "rh_cmn_clk.h"

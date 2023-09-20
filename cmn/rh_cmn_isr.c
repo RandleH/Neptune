@@ -129,7 +129,11 @@ void DMA1_Stream3_IRQHandler( void){}
 #include "task.h"
 
 #include "rh_cmn_spi.h"
+#include "rh_cmn_usart.h"
 
+/**
+ * @brief       SPI2 Transfer Completed Interrupt Handler
+*/
 void DMA1_Stream4_IRQHandler( void){
     // 0x40026000 -> DMA1
     // 0x40026070 -> DMA1_Stream4
@@ -139,7 +143,32 @@ void DMA1_Stream4_IRQHandler( void){
 }
 
 void DMA1_Stream5_IRQHandler( void){}
-void DMA1_Stream6_IRQHandler( void){}
+
+
+
+/**
+ * @brief       USART2 DMA TX Completed Interrupt Handler
+*/
+void DMA1_Stream6_IRQHandler( void){
+    HAL_DMA_IRQHandler(g_CmnUsart.hw_handle.hdmatx);
+}
+
+/**
+ * @brief       USART2 RX Completed Interrupt Handler
+*/
+void DMA1_Stream7_IRQHandler( void){
+    HAL_DMA_IRQHandler(g_CmnUsart.hw_handle.hdmarx);
+}
+
+/**
+ * @brief       USART2 TX Completed Interrupt Handler
+*/
+void USART2_IRQHandler(void){
+    HAL_USART_IRQHandler( &g_CmnUsart.hw_handle);
+}  
+
+
+
 void ADC_IRQHandler( void){}        
 
 void EXTI9_5_IRQHandler(void){}           
@@ -157,14 +186,14 @@ void I2C2_ER_IRQHandler(void){}
 void SPI1_IRQHandler(void){}              
 void SPI2_IRQHandler(void){}              
 void USART1_IRQHandler(void){}            
-void USART2_IRQHandler(void){}           
+         
 
 
 void EXTI15_10_IRQHandler( void){}
 void RTC_Alarm_IRQHandler( void){}
 void OTG_FS_WKUP_IRQHandler( void){}
 
-void DMA1_Stream7_IRQHandler( void){}
+
 
 void SDIO_IRQHandler( void){}
 void TIM5_IRQHandler( void){}

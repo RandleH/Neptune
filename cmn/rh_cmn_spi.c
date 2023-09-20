@@ -47,9 +47,8 @@
 
 
 /* Includes ------------------------------------------------------------------*/
-#include "rh_cmn_spi.h"
-#include "rh_cmn_clk.h"
-#include "rh_cmn_delay.h"
+#include "rh_cmn.h"
+
 
 
 
@@ -106,7 +105,7 @@ extern "C"{
 
 /* Global variables ----------------------------------------------------------*/
 CmnSpi_t g_CmnSpi = {0};
-DMA_HandleTypeDef hspi2_dma = {0};
+static DMA_HandleTypeDef hspi2_dma = {0};
 
 
 /* Functions -----------------------------------------------------------------*/
@@ -337,7 +336,7 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
 
     // DMA stream x configuration register (DMA_SxCR) (x = 0..7)
     // RM0383 Page: 190
-    HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5U, 0);
+    HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, kCmnConst__SPI2_TX_IRQ_PRIORITY, 0);
     HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
     
     /* SPI config */
