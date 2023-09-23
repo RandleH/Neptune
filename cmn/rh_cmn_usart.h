@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    rh_cmn_usart.h
   * @author  RandleH
-  * @brief   This file contains code template.
+  * @brief   Usart driver source code.
   ******************************************************************************
   * @attention
   *
@@ -40,16 +40,19 @@ typedef struct CmnUsart{
     TaskHandle_t         task_handle_blk;
     USART_HandleTypeDef  hw_handle;
 }CmnUsart_t;
-
 extern CmnUsart_t g_CmnUsart;
 
 
+
+
+/* Exported functions --------------------------------------------------------*/
 u32 rh_cmn_usart__init( u32 baudrate);
 u32 rh_cmn_usart__send_dma( const u8 *buf, size_t nItems, u8* pDone);
 u32 rh_cmn_usart__send_blk( const u8 *buf, size_t nItems, u8* pDone);
 
 
 int rh_cmn_usart__printf( char const *fmt, ...);
+
 
 #ifdef __cplusplus
 }

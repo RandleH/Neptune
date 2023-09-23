@@ -1,9 +1,36 @@
+/**
+  ******************************************************************************
+  * @file    template.txt
+  * @author  RandleH
+  * @brief   This file contains code template.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2022 RandleH.
+  * All rights reserved.
+  *
+  * This software component is licensed by RandleH under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
 
 
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f4xx.h"
+#include "stm32f4xx_hal_gpio.h"
+#include "stm32f4xx_hal_spi.h"
+#include "stm32f4xx_hal_rcc.h"
+#include "stm32f4xx_hal_dma.h"
 
-
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "rh_cmn.h"
+
+
 
 
 
@@ -120,16 +147,6 @@ void DMA1_Stream1_IRQHandler( void){}
 void DMA1_Stream2_IRQHandler( void){}
 void DMA1_Stream3_IRQHandler( void){}
 
-#include "stm32f4xx.h"
-#include "stm32f4xx_hal_gpio.h"
-#include "stm32f4xx_hal_spi.h"
-#include "stm32f4xx_hal_rcc.h"
-#include "stm32f4xx_hal_dma.h"
-#include "FreeRTOS.h"
-#include "task.h"
-
-#include "rh_cmn_spi.h"
-#include "rh_cmn_usart.h"
 
 /**
  * @brief       SPI2 Transfer Completed Interrupt Handler
@@ -139,7 +156,6 @@ void DMA1_Stream4_IRQHandler( void){
     // 0x40026070 -> DMA1_Stream4
 
     HAL_DMA_IRQHandler(g_CmnSpi.spi2.hw_handle.hdmatx);
-    
 }
 
 void DMA1_Stream5_IRQHandler( void){}

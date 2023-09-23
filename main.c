@@ -17,7 +17,7 @@
   ******************************************************************************
   */
 
-#include "rh_app_utility.h"
+
 #include "rh_bsp.h"
 
 #include "rh_cmn.h"
@@ -94,29 +94,24 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName ){
 
 
 void vApplicationMallocFailedHook( void ){
-    
+    rh_cmn__assert( false, "FreeRTOS malloc failed!");
 }
 
 
 
-void task( void* param){
+
+void task_blink( void* param){
     static u8 cnt = 10;
     bool flag = true;
     while(1){
         vTaskDelay(1000);
         
-        taskENTER_CRITICAL();
-        rh_cmn_usart__printf( "ping\n");
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        taskEXIT_CRITICAL();
-
+        
         vTaskDelay(1000);
         
-        taskENTER_CRITICAL();
-        rh_cmn_usart__printf( "pong\n");
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        taskEXIT_CRITICAL();
-
+    
         if( cnt==0){
             if(flag==true){
                 rh_cmn_clk__mco_disable();
@@ -132,9 +127,6 @@ void task( void* param){
 #include <wchar.h>
 
 u16 g_Gram[30*30] = {0};
-
-
-
 
 void task_switch_color( void *param){
     const u16 color[] = { 0xF800, 0x07E0, 0x001F};
@@ -158,11 +150,24 @@ void task_print_cpu_info( void* param){
         rh_cmn_usart__printf( "APB2 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK2Freq());
         taskEXIT_CRITICAL();
 
-        xTaskCreate( task, "USART task", 1024U, NULL, 40U, NULL);
         vTaskDelete(NULL);
     }
 }
 
+
+#include <string.h>
+
+
+void task( void* param){
+    g_AppTrace.launch();
+
+    while(1){
+        g_AppTrace.main( 0, 0);
+        vTaskDelay(1000);
+    }
+
+    g_AppTrace.exit();
+}
 
 
 void task_init( void *param){
@@ -176,10 +181,14 @@ void task_init( void *param){
         rh_bsp_screen__init();
         vTaskDelay(10);
 
+        
+
         rh_cmn_clk__mco_enable();
 
         xTaskCreate( task_print_cpu_info, "USART task", 1024U, NULL, 40U, NULL);
         xTaskCreate( task_switch_color,   "Screen task", 1024U, NULL, 45U, NULL);
+        xTaskCreate( task_blink, "USART task", 1024U, NULL, 40U, NULL);
+        xTaskCreate( task, "App Trace task", 1024U, NULL, 40U, NULL);
         vTaskDelete(NULL);
     }
 }
@@ -199,17 +208,7 @@ int main( int argc, char const *argv[]){
     rh_cmn_clk__set_cpu( kCmnCpuFreq_96MHz);
     rh_cmn_clk__systick_enable( kCmnSystickFreq_1KHz);
 
-    // rh_app_trace__init(NULL);
-    // rh_app_trace__append_message( kTraceBusClock, "------------------------------------------------\n");
-    // rh_app_trace__append_message( kTraceBusClock, "System Core Frequency: %ld Hz\n", HAL_RCC_GetSysClockFreq());
-    // rh_app_trace__append_message( kTraceBusClock, "AHB Clock Frequency: %ld Hz\n", HAL_RCC_GetHCLKFreq());
-    // rh_app_trace__append_message( kTraceBusClock, "APB1 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK1Freq());
-    // rh_app_trace__append_message( kTraceBusClock, "APB2 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK2Freq());
-    
-
-    
     xTaskCreate( task_init, "Init task", 8192U, NULL, 40U, NULL);
-    
     
     vTaskStartScheduler();
 
@@ -217,3 +216,6 @@ int main( int argc, char const *argv[]){
 
     return 0;
 }
+
+
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

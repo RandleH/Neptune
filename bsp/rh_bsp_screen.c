@@ -52,6 +52,7 @@
     }while(0)
 
 
+#warning "Use non block delay"
 #define DELAY_MS(x)\
     do{\
         rh_cmn_delay_ms__halt(x);\

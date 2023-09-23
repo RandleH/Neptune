@@ -4,263 +4,289 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "rh_app_trace.h"
 #include "rh_cmn.h"
 
 
-/**
- * @category    Inquiry Macro
- * @cond        No W process on queue
-*/
-#define IS_READ_LOCK(x)             (((x)&(1<<0))==0)
-#warning "TODO: Logic not implemented"
+#define self      (&g_AppTrace)
+#define BUSY      (0)
+#define IDLE      (1)
+#define IS_ALL_FULL( client_ptr)            ((u8)(BUSY==(((client_ptr)->activity.mask_tx)&((client_ptr)->activity.mask_rx))))
+#define IS_TX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->activity.mask_tx)))
+#define IS_RX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->activity.mask_rx)))
 
-/**
- * @category    Inquiry Macro
- * @cond        No R/W process on queue
-*/
-#define IS_WRITE_LOCK(x)            (((x)&(1<<1))==0)
-
-/**
- * @category    Action Macro
- * @cond        No W process on queue
-*/
-#define SET_READ_LOCK(x)            do{(x) |= (1<<0);}while(0)
-
-/**
- * @category    Action Macro
- * @cond        No R/W process on queue
-*/
-#define SET_WRITE_LOCK(x)           do{(x) |= (1<<1);}while(0)
-
-/**
- * @category    Action Macro
- * @cond        No R/W process on queue
-*/
-#define UNSET_READ_LOCK(x)          do{(x) &= (~(1<<0));}while(0)
-
-/**
- * @category    Action Macro
- * @cond        No R/W process on queue
-*/
-#define UNSET_WRITE_LOCK(x)         do{(x) &= (~(1<<1));}while(0)
+#define IS_TX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->activity.mask_tx & (1 << (idx)))))
+#define IS_RX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->activity.mask_rx & (1 << (idx)))))
+#define SET_TX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->activity.mask_tx |=  (1 << (idx)); }while(0)
+#define SET_RX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->activity.mask_rx |=  (1 << (idx)); }while(0)
+#define SET_TX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->activity.mask_tx &=  (~(1 << (idx))); }while(0)
+#define SET_RX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->activity.mask_rx &=  (~(1 << (idx))); }while(0)
 
 
-#define ENTER_CRITICAL_ZONE()       do{}while(0)
-#define EXIT_CRITICAL_ZONE()        do{}while(0)
+static u8 get_buffer_usage( void){
+    u32 value = self->activity.mask_tx & self->activity.mask_rx;
+    value = ( value & 0x55555555 ) + ( (value >>1)  & 0x55555555 );
+    value = ( value & 0x33333333 ) + ( (value >>2)  & 0x33333333 );
+    value = ( value & 0x0f0f0f0f ) + ( (value >>4)  & 0x0f0f0f0f );
+    value = ( value & 0x00ff00ff ) + ( (value >>8)  & 0x00ff00ff );
+    value = ( value & 0x0000ffff ) + ( (value >>16) & 0x0000ffff );
+    rh_cmn__assert( value<=32, "Algorithm error. \"uint32_t\" value will have 32 bitset at most ");
 
-#define MAX_WAIT_CNT                (1000U)
-#define MAX_BUFFER_SIZE             (256U)
-#define MAX_TRACE_MESSAGE_DURATION  (100U)
-#define TRACE_INTERVAL              (1000U)
+    /* `value` indicates how many '1' in the mask, where '1' means idle buffer */
+    return 32-value;
+}
 
-
-typedef struct AppTracePackage{
-    u32   color;                        /*!< Hex format color */
-    const char* buf;                    /*!< Allocated from `rh_cmn_mem__malloc()` */
-    struct AppTracePackage *pNext;      /*!< Linked list; Allocated from `rh_cmn_mem__malloc()` */
-}AppTracePackage_t;
-
-typedef struct AppTrace{
-    AppTracePackage_t *pHead;           /*!< Allocated from `rh_cmn_mem__malloc()` */
-    u8                lock;
-    u32               raw;
-
-    pCmnClkEpoch      pEpoch;
-}AppTrace_t;
-
-typedef struct AppTrace   *pAppTrace;
-
-
-static AppTrace_t s_context = {0};
-
-
-/**
- * @brief       Initialize Application: Trace
- * @param       config      Nullable pointer. If null, use default config
-*/
-void rh_app_trace__init( const pAppTraceCfg config){
-    s_context.lock  = 0;
-    s_context.pHead = NULL;
-    s_context.raw   = 0x00000000;
-    s_context.pEpoch = rh_cmn_clk__systick_create_epoch();
+static void adjust_priority_task_tx( void){
+    u8 usage = get_buffer_usage();
+    if( usage>30 ){
+        /* Immediately clear buffer */
+        self->force_to_clear = true;
+    }else if( usage>16 ){
+        self->force_to_clear = false;
+        /* Raise priority */
+        UBaseType_t priority = RH_MAX( uxTaskPriorityGet(NULL)+1, uxTaskPriorityGet(self->task_tx) );
+        vTaskPrioritySet( self->task_tx, RH_MIN( priority, (configMAX_PRIORITIES-1)));
+    }else{
+        self->force_to_clear = false;
+        /* Restore priority */
+        vTaskPrioritySet( self->task_tx, kAppConst__TRACE_PRIORITY);
+    }
 }
 
 
-
-
-/**
- * @brief       Internal trace append function
- * @param       whom    Which component to trace
- * @param       buf     This buffer assumed to have maximum 256 valid bytes in memory and must be NUL terminated.
- * @param       color   Color in hex format
- * @retval      Return 0 if success
- *              Return 1 if no memory to allocated
- *              Return 2 if too busy and maximum retry count reached
-*/
-static u32 rh_app_trace__append( enum AppTraceItem whom, const char *buf, u32 color){
-    u16    wait_cnt         = 0;
-    size_t length           = strlen(buf);
-    char * allocated_buffer = NULL; 
-    const char * str_prefix = NULL;
-    size_t       str_prefix_len = 0;
-
-    /* Determine the prefix string */
-    switch (whom){
-        case kTraceBusClock:
-            str_prefix = "BUS CLOCK:"; break;
-
-        case kTraceMemory:
-            str_prefix = "MEMORY:"; break;
-
-        case kTraceSPIRegister:
-            str_prefix = "SPI:"; break;
-        
-        default:
-            str_prefix = "UNKNOWN:"; break;
-    }
-    str_prefix_len = strlen(str_prefix);
-
-    /* Allocate message buffer */
-    length += str_prefix_len;
-    allocated_buffer = rh_cmn_mem__malloc( length+1);
-    if( allocated_buffer!=NULL ){
-        return 1;
-    }
-
-    /* Copy prefix and message body to this buffer */
-    strncpy( allocated_buffer               , str_prefix, length);
-    strncpy( allocated_buffer+str_prefix_len, buf       , length-str_prefix_len);
-    allocated_buffer[length] = '\0';
-    
-    /* Make a package that contains this message */
-    AppTracePackage_t *pItem = (AppTracePackage_t*)rh_cmn_mem__malloc( sizeof(AppTracePackage_t));
-    pItem->color = color;
-    pItem->buf   = allocated_buffer;
-    pItem->pNext = NULL;
-    
-    /* Append to the end of the queue */
-    while( IS_READ_LOCK(s_context.lock) && wait_cnt<MAX_WAIT_CNT){
-        ++wait_cnt;
-        rh_cmn_delay_ms__escape(10);
-    }
-    if( wait_cnt==MAX_WAIT_CNT && IS_READ_LOCK(s_context.lock)){
-        goto BUSY;
-    }else{
-        SET_READ_LOCK(s_context.lock);
-        wait_cnt = 0;
-    }
-    
-    SET_READ_LOCK(s_context.lock);
-    AppTracePackage_t dummy = { .pNext=s_context.pHead};
-    AppTracePackage_t *ptr = &dummy;
-    while( ptr->pNext!=NULL ){
-        ptr = ptr->pNext;
-    }
-    
-    while( IS_WRITE_LOCK(s_context.lock) && wait_cnt<MAX_WAIT_CNT){
-        ++wait_cnt;
-        rh_cmn_delay_ms__escape(10);
-    }
-    if( wait_cnt==MAX_WAIT_CNT && IS_WRITE_LOCK(s_context.lock)){
-        goto BUSY;
-    }else{
-        SET_WRITE_LOCK(s_context.lock);
-        wait_cnt = 0;
-    }
-    
-    ptr->pNext = pItem;
-    UNSET_WRITE_LOCK(s_context.lock);
-    UNSET_READ_LOCK(s_context.lock);
-    
-    /* Success */
-    return 0;
-
-    /* Busy */
-BUSY:
-    rh_cmn_mem__free(allocated_buffer);
-    allocated_buffer = NULL;
-    return 2;   
-}
-
-
-static void rh_app_trace__send_message( void* dummy_ptr){
-    
+static void task_func__tx( void* ptr){
+    static UBaseType_t mark = 0;
     while(1){
-        rh_cmn_clk__systick_update_epoch( s_context.pEpoch);
-        AppTracePackage_t dummy = {.pNext=s_context.pHead};
-        AppTracePackage_t *pNow  = dummy.pNext;
         
-        while( MAX_TRACE_MESSAGE_DURATION > rh_cmn_clk__systick_duration_epoch( s_context.pEpoch, false) ){
-            if( IS_WRITE_LOCK(s_context.lock) ){
-                goto SKIP_TO_NEXT_ROUND;
-            }
-
-            SET_WRITE_LOCK(s_context.lock);
-            if( pNow!=NULL){
-                
-                ENTER_CRITICAL_ZONE();
-                // Color Rendering:
-
-                // Send Buffer:
-                rh_cmn_usart__printf( pNow->buf);
-                EXIT_CRITICAL_ZONE();
-
-                rh_cmn_mem__free( (void*)(pNow->buf));
-                dummy.pNext = pNow->pNext;
-                rh_cmn_mem__free( pNow);
-                pNow = dummy.pNext;
-                UNSET_WRITE_LOCK(s_context.lock);
-            }
-            UNSET_READ_LOCK(s_context.lock);
+        ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+        if( self->force_to_clear==true ){
+            taskENTER_CRITICAL();
         }
-SKIP_TO_NEXT_ROUND:
-        rh_cmn_clk__systick_update_epoch( s_context.pEpoch);
-        rh_cmn_delay_ms__escape(TRACE_INTERVAL);
+        
+        while( self->activity.anchor.pHead!=NULL ){
+            u32 idx = (self->activity.anchor.pHead - &self->activity.data[0]);
+            rh_cmn__assert( IS_TX_FULL_AT( self, idx)==true, "Empty buffer exists in linked list.");
+
+            rh_cmn_usart__send_dma( self->activity.anchor.pHead->addr, self->activity.anchor.pHead->len, NULL);
+                
+            /* Request access to shared resource */
+            if( xSemaphoreTake( self->lock_handle, portMAX_DELAY)==pdTRUE){
+                /* Set to empty */
+                SET_TX_EMPTY_AT( self, idx);
+
+                if( self->activity.anchor.pHead->pNext==NULL ){
+                    /* Reached the end of linked list */
+                    self->activity.anchor.pEnd = (AppTraceUnit_t*)&self->activity.anchor;
+                }
+                /* Remove this node from linked list */
+                self->activity.anchor.pHead = self->activity.anchor.pHead->pNext;
+
+                /* Free shared resource */
+                xSemaphoreGive( self->lock_handle);
+                mark = uxTaskGetStackHighWaterMark( NULL );
+            }
+        }
+        if( self->force_to_clear==true ){
+            taskEXIT_CRITICAL();
+            #warning "Should only affect `self->message()`, not to suspend all process"
+        }
+        
+        adjust_priority_task_tx();
+
+    }
+}
+
+static void task_func__rx( void* ptr){
+    while(1){
+        // uxTaskGetStackHighWaterMark( NULL );
     }
 }
 
 
+static u32 find_next_available( void){
+    register u32 idx = 0;
+    register u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+    while( BUSY==(mask_all&(1<<idx++)) );
+    return idx-1;
+}
+
+
+
+
 /**
- * @retval      Return 0 if success
- *              Return 1 if no memory to allocated
- *              Return 2 if too busy and maximum retry count reached
+ * @brief       Initialize required memory and launch thread
+ * @return      Return 0 if success
+ *              Format [Bit 2][Bit 1][Bit 0]
+ *                       |      |      |
+ *                       |      |      +---------- 1=Receive Thread launch failed
+ *                       |      +----------------- 1=Transmit Thread launch failed
+ *                       
 */
-u32 rh_app_trace__append_message( enum AppTraceItem whom, const char *fmt, ...){
-    char buffer[MAX_BUFFER_SIZE] = {0};
-    va_list ap;
-    va_start( ap, fmt);
-    int len = vsnprintf( buffer, MAX_BUFFER_SIZE, fmt, ap);
-    va_end(ap);
+static u32 launch( void){
+    u32 res = 0x00000000;
+    static StaticTask_t task_tcb_rx = {0};
+    g_AppTrace.task_rx = xTaskCreateStatic(     task_func__rx, 
+                                                "App Trace - RX", 
+                                                sizeof(g_AppTrace.stack)/sizeof(StackType_t), 
+                                                &g_AppTrace, 
+                                                kAppConst__TRACE_PRIORITY, 
+                                                g_AppTrace.stack, 
+                                                &task_tcb_rx);
 
-    if( len<0 )
-        return -1;
+    res |= (NULL==self->task_rx) << 0;
+    
+    res |= (pdFALSE==xTaskCreate( task_func__tx, "App Trace - TX", 512U, &g_AppTrace, kAppConst__TRACE_PRIORITY, &g_AppTrace.task_tx)) << 1;
+    
+    self->lock_handle = xSemaphoreCreateMutexStatic( &self->lock_buffer );
+    res |= (NULL==self->lock_handle)<<2;
 
-    return rh_app_trace__append( whom, buffer, 0xffffff);
+    return res;
 }
 
-u32 rh_app_trace__append_debug( enum AppTraceItem whom, char const *fmt, ...){
-    char buffer[MAX_BUFFER_SIZE] = {0};
-    va_list ap;
-    va_start( ap, fmt);
-    int len = vsnprintf( buffer, MAX_BUFFER_SIZE, fmt, ap);
-    va_end(ap);
+/**
+ * @brief       Application exit function
+ * @return      Always return 0
+*/
+static int exit_function( void){
+    vTaskDelete( g_AppTrace.task_tx);
+    g_AppTrace.task_tx = NULL;
 
-    if( len<0 )
-        return -1;
-
-    return rh_app_trace__append( whom, buffer, 0xffff00);
+    return 0;
 }
 
-u32 rh_app_trace__append_error( enum AppTraceItem whom, char const *fmt, ...){
-    char buffer[MAX_BUFFER_SIZE] = {0};
+static int main_function( int argc, const char*argv[]){
+    static u32 cnt = 0;
+    if( g_AppTrace.task_tx==NULL || g_AppTrace.task_rx==NULL ){
+        g_AppTrace.launch();
+    }
+    
+    int a,b;
+    a=(rand()&0xff); b=(rand()&0xff);
+    g_AppTrace.message( "Message %d: %d+%d=%d\n", cnt++, a,b,a+b);
+    a=(rand()&0xff); b=(rand()&0xff);
+    g_AppTrace.message( "Message %d: %d-%d=%d\n", cnt++, a,b,a-b);
+    a=(rand()&0xff); b=(rand()&0xff);
+    g_AppTrace.message( "Message %d: %d*%d=%d\n", cnt++, a,b,a*b);
+    a=(rand()&0xff); b=(rand()&0xff);
+    g_AppTrace.message( "Message %d: %d/%d=%d\n", cnt++, a,b,b==0? 0xFFFFFFFF: (a/b));
+
+    return 0;
+}
+
+
+
+
+/**
+ * @brief       Append format message to buffer. Message will be sent out when in idle process
+ * @note   Thread safe function. 
+*/
+static u32 message( const char *fmt, ...){
+    u32 res = 0;        /* Value about to return */
+    u8  idx = 0;        /* Idx for available buffer */
+
+    rh_cmn__assert( (0xFFFFFFFF==(self->activity.mask_tx | self->activity.mask_rx)), "TX RX buffer should NOT be overlapped" );
+    
+    adjust_priority_task_tx();
+    
+    
+    /* Request access to shared resource */
+    if( xSemaphoreTake( self->lock_handle, ((TickType_t)kAppConst__TRACE_MAX_WAIT_TICK)==pdTRUE) ){
+       
+        if( IS_ALL_FULL(self) ){
+            /* No buffer available */
+            res = 1;
+        }else{
+            /* Find an available buffer & Set to busy */
+            idx = find_next_available();
+            rh_cmn__assert( idx<32U, "Impossible, slot index is greater than 32 when buffer is NOT full");
+            SET_TX_FULL_AT( self, idx);
+
+            /* Append to the end */
+            self->activity.data[idx].pNext    = NULL;
+            if( self->activity.anchor.pHead!=NULL ){
+                /* Link list is NOT empty */
+                rh_cmn__assert( self->activity.anchor.pEnd!=(&self->activity.anchor), "Anchor off hook. Head & end node don't match.");
+                self->activity.anchor.pEnd->pNext = &self->activity.data[idx];
+                self->activity.data[idx].pPrev    = self->activity.anchor.pEnd;
+            }else{
+                /* Link list is empty */
+                rh_cmn__assert( self->activity.anchor.pEnd==(&self->activity.anchor), "Anchor off hook. Head & end node don't match.");
+                self->activity.anchor.pHead       = &self->activity.data[idx];
+                self->activity.data[idx].pPrev    = (AppTraceUnit_t*)&self->activity.anchor;
+            }
+
+            /* Terminal node move to this */
+            self->activity.anchor.pEnd = &self->activity.data[idx];
+        }
+
+        /* Free shared resource */
+        xSemaphoreGive( self->lock_handle);
+    }else{
+        /* Busy */
+        res = 2;
+    }
+    
+    if( res != 0 ){
+        return res;
+    }
+
+    /**
+     * @note The snprintf() and vsnprintf() functions will write at most size-1 of the characters printed into the output string (the size'th character then gets the terminating ‘\0’); if
+     the return value is greater than or equal to the size argument, the string was too short and some of the printed characters were discarded.  The output is always null-
+     terminated, unless size is 0.
+    */
     va_list ap;
     va_start( ap, fmt);
-    int len = vsnprintf( buffer, MAX_BUFFER_SIZE, fmt, ap);
+    const int len_max = sizeof(self->activity.data[0].addr);
+    int len = vsnprintf( self->activity.data[idx].addr, len_max, fmt, ap);
     va_end(ap);
+    
+    /* Warning: Given message is too long & unable to print whole */
+    if( len >= len_max ){
+        /* Add ellipsis symbol at the end */
+        self->activity.data[idx].addr[len_max-2] = '.';
+        self->activity.data[idx].addr[len_max-3] = '.';
+        self->activity.data[idx].addr[len_max-4] = '.';
+        self->activity.data[idx].len             = len_max;
+    }else{
+        self->activity.data[idx].len             = len;
+    }
+    /* Trigger to send message through hardware */
+    xTaskNotifyGive( self->task_tx);
 
-    if( len<0 )
-        return -1;
+    return 0;
+} 
 
-    return rh_app_trace__append( whom, buffer, 0xff0000);
+/**
+ * @brief   
+*/
+static inline u32 isEmptyTX( void){
+    return (self->activity.mask_tx==0x00000000 );
 }
+
+static inline u32 isEmptyRX( void){
+    return (self->activity.mask_rx==0x00000000 );
+}
+
+
+AppTrace_t g_AppTrace = {
+    .task_tx     = NULL,
+    .task_rx     = NULL,
+    .activity    = {    
+        .mask_rx=0xFFFFFFFF, 
+        .mask_tx=0xFFFFFFFF, 
+        .anchor={
+            .pHead=NULL, 
+            .pEnd=(AppTraceUnit_t*)(&self->activity.anchor)
+        }
+    },
+    .launch      = launch,
+    .message     = message,
+    .main        = main_function,
+    .isEmptyRX   = isEmptyRX,
+    .isEmptyTX   = isEmptyTX,
+    .exit        = exit_function
+};
+
+

@@ -75,26 +75,9 @@
 #define WRITE_DC(x)         do{ x==0? CLEAR_BIT( GPIOx_DC->ODR , PIN_DC ): SET_BIT( GPIOx_DC->ODR , PIN_DC ); }while(0)
 #define WRITE_RST(x)        do{ x==0? CLEAR_BIT( GPIOx_RST->ODR, PIN_RST): SET_BIT( GPIOx_RST->ODR, PIN_RST); }while(0)
 
-#define SPI_CLK_ENABLE()\
-    do{\
-        SET_BIT( RCC->APB1ENR, RCC_APB1ENR_SPI2EN);\
-    }while(0)
-
-#define SPI_CLK_DISABLE()\
-    do{\
-        CLEAR_BIT( RCC->APB1ENR, RCC_APB1ENR_SPI2EN);\
-    }while(0)
 
 
-#define GPIO_CLK_ENABLE()\
-    do{\
-        SET_BIT( RCC->AHB1ENR, RCC_AHB1ENR_GPIOBEN);\
-    }while(0)
 
-#define GPIO_CLK_DISABLE()\
-    do{\
-        CLEAR_BIT( RCC->AHB1ENR, RCC_AHB1ENR_GPIOBEN);\
-    }while(0)    
 
 
 #ifdef __cplusplus
@@ -123,6 +106,7 @@ static DMA_HandleTypeDef hspi2_dma = {0};
 
 
 /**
+ * @brief   Calculate correct division given the cfg and cpu frequency
  * @retval  Possible values: 0, 1, 2, 4, 6, 8, 16, 32
 */
 static u8 rh_cmn_spi__calculate_div( enum CmnCpuFreq f_cpu, enum CmnSpiFreq f_spi){
@@ -169,12 +153,19 @@ static u8 rh_cmn_spi__calculate_div( enum CmnCpuFreq f_cpu, enum CmnSpiFreq f_sp
 
 
 
-
-static void rh_cmn_spi__tx_error_callback( SPI_HandleTypeDef * hdma){
+/**
+ * @brief       This callback function ONLY run in ISR 
+ * @return      (none)
+*/
+static void rh_cmn_spi__tx_error_callback( SPI_HandleTypeDef * hspi){
 
 }
 
-static void rh_cmn_spi__tx_half_callback( SPI_HandleTypeDef * hdma){
+/**
+ * @brief       This callback function ONLY run in ISR 
+ * @return      (none)
+*/
+static void rh_cmn_spi__tx_half_callback( SPI_HandleTypeDef * hspi){
     
 }
 
@@ -273,7 +264,6 @@ u32 rh_cmn_spi__send_block( const u8 *buf, size_t nItems, size_t nTimes, u32 int
         SET_BIT( SPIx->CR1, SPI_CR1_SPE);
     }
     
-    
     while(nTimes--){
         const u8 *ptr = buf;
         size_t len = nItems;
@@ -287,7 +277,10 @@ u32 rh_cmn_spi__send_block( const u8 *buf, size_t nItems, size_t nTimes, u32 int
         }
     }
     
-    *pDone = true;
+    if( pDone!=NULL){
+        *pDone = true;
+    }
+    
     return 0;
 }
 
@@ -327,9 +320,6 @@ u32 rh_cmn_spi__init( enum CmnSpiFreq freq){
     if( HAL_OK!=HAL_DMA_Init( g_CmnSpi.spi2.hw_handle.hdmatx)){
         return 2;
     }
-
-
-    
 
     // Or use `HAL_DMA_RegisterCallback` to complete same functionality
 
@@ -399,7 +389,7 @@ u32 rh_cmn_spi__deinit( void){
     // Reference Manual, RM0383, Page 579
     SPIx->CR1 = 0x0000;
     SPIx->CR2 = 0x0000;
-    SPI_CLK_DISABLE();
+    __HAL_RCC_SPI2_CLK_DISABLE();
     return 0;
 }
 
@@ -409,7 +399,7 @@ u32 rh_cmn_spi__deinit( void){
 
 
 
-/** @} */ // end of USART
+/** @} */ // end of SPI
 /** @} */ // end of Common
 
 

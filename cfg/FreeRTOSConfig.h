@@ -105,6 +105,7 @@ to exclude the API function. */
 #define INCLUDE_xTimerPendFunctionCall 1
 #define INCLUDE_xEventGroupSetBitFromISR 1
 #define INCLUDE_xTaskGetHandle           1
+#define INCLUDE_uxTaskGetStackHighWaterMark 1
 
 /*------------- CMSIS-RTOS V2 specific defines -----------*/
 /* When using CMSIS-RTOSv2 set configSUPPORT_STATIC_ALLOCATION to 1
@@ -127,8 +128,7 @@ to exclude the API function. */
 //define USE_FreeRTOS_HEAP_5
 
 */
-#define configSUPPORT_STATIC_ALLOCATION          1
-#define configSUPPORT_DYNAMIC_ALLOCATION         1
+
 
 #define USE_FreeRTOS_HEAP_4
 

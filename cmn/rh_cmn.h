@@ -51,11 +51,12 @@
 /// Cortex-M   | ARM v7-M
 /// ----------------------------
 
+#ifndef RH_CMN_H
+#define RH_CMN_H 
 
 
-#include "rh_common.h"
 
-
+/* Exported types ------------------------------------------------------------*/
 enum CmnConst{
     kCmnConst__USART_BUFFER_SIZE_POW_2   = 10     ,\
     kCmnConst__USART_RX_IRQ_PRIORITY     = 7      ,\
@@ -67,13 +68,16 @@ enum CmnConst{
 
 #warning "Unused: kCmnConst__USART_BAUDRATE"
 
-
+/* Includes ------------------------------------------------------------------*/
+#include "rh_common.h"
 #include "rh_cmn_clk.h"
 #include "rh_cmn_usart.h"
 #include "rh_cmn_delay.h"
 #include "rh_cmn_mem.h"
 #include "rh_cmn_spi.h"
 #include "rh_cmn_gpio.h"
+#include "rh_cmn_assert.h"
 
+#endif
 
 /************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

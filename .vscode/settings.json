@@ -13,7 +13,10 @@
         "rh_bsp.h": "c",
         "freertos.h": "c",
         "rh_cmn_spi.h": "c",
-        "task.h": "c"
+        "task.h": "c",
+        "stm32f4xx_hal_usart.h": "c",
+        "stm32f4xx_hal_gpio.h": "c",
+        "semphr.h": "c"
     },
 
 

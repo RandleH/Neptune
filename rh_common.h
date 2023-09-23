@@ -22,7 +22,8 @@ typedef volatile u32 vu32;
 typedef volatile u64 vu64;
 
 
-
+#define RH_MAX(a,b)   ((a)>(b)? (a) : (b))
+#define RH_MIN(a,b)   ((a)<(b)? (a) : (b))
 
 #endif
 

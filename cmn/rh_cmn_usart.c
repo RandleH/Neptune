@@ -72,11 +72,18 @@ static DMA_HandleTypeDef husart2_dma_rx = {0};
 
 
 
-
+/**
+ * @brief       Usart TX Error callback. This callback function ONLY run in ISR 
+ * @return      (none)
+*/
 static void rh_cmn_usart__tx_error_callback( USART_HandleTypeDef * hw_handle){
 
 }
 
+/**
+ * @brief       This callback function ONLY run in ISR 
+ * @return      (none)
+*/
 static void rh_cmn_usart__tx_half_callback( USART_HandleTypeDef * hw_handle){
     
 }
@@ -154,7 +161,6 @@ u32 rh_cmn_usart__init( u32 baudrate){
     if( HAL_OK!=HAL_DMA_Init( g_CmnUsart.hw_handle.hdmarx)){
         return 2;
     }
-    #warning "DMA unverified"
 
     HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, kCmnConst__USART_TX_IRQ_PRIORITY, 0);
     HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
@@ -252,10 +258,7 @@ int rh_cmn_usart__printf( char const *fmt, ...){
 
 
 
-
-
-
-
 /** @} */ // end of USART
 /** @} */ // end of Common
 
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/
