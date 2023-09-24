@@ -118,8 +118,9 @@ u32 rh_cmn_gpio__init( void){
     GPIO_InitStructure.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
     HAL_GPIO_Init( GPIOC, &GPIO_InitStructure);
     
-    /* Disable MCO frequency output */
-    rh_cmn_clk__mco_disable();
+    /* Disable MCO frequency output (Set to input mode) */
+    GPIOA->MODER &= ~(GPIO_MODER_MODE8_Msk);
+    GPIOC->MODER &= ~(GPIO_MODER_MODE9_Msk);
     
     return 0;
 }

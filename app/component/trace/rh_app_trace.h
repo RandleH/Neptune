@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    rh_app_trace.h
   * @author  RandleH
-  * @brief   Application: Message Trace
+  * @brief   Application: Trace
   ******************************************************************************
   * @attention
   *
@@ -22,19 +22,17 @@
 
 
 /* Includes ------------------------------------------------------------------*/
-
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 
 #include "rh_common.h"      /* Description - Project Common Headfile */
-
 #include "rh_cmn.h"         /* Description - Common Components */
-#include "rh_bsp.h"
-#include "rh_app.h"
+#include "rh_bsp.h"         /* Description - Board Support Package Components */
+#include "rh_app.h"         /* Description - Application Components */
 
 
-
+/* Exported types ------------------------------------------------------------*/
 typedef struct AppTraceUnit{
     struct AppTraceUnit *pNext;
     struct AppTraceUnit *pPrev;
@@ -42,6 +40,16 @@ typedef struct AppTraceUnit{
     u8                   addr[1<<(kAppConst__TRACE_MESSAGE_BUFFER_SIZE_POW_LEVEL-5)];
 }AppTraceUnit_t;
 
+
+
+/**
+ * @brief       Dummy linked list. Only for head and end node usage
+ * @note        `pHead` & `pEnd` conditions are mutually exclusive
+ *              size: ? bytes
+ * @attention   Never use anchor to fetch content since `AppTraceUnit_t` pointer cast to anchor. 
+ * @param       phead       Head Node - If `NULL`, then linked list is empty
+ * @param       pEnd        End Node  - If pointing to anchor itself, then linked list is empty
+*/
 typedef struct AppTraceUnitAnchor{
     struct AppTraceUnit *pHead;
     struct AppTraceUnit *pEnd;
@@ -49,7 +57,13 @@ typedef struct AppTraceUnitAnchor{
 
 
 
-
+/**
+ * @brief       Application Super Structure
+ * @note        Globally created in program
+ *              size: ? bytes
+ * @attention   Do NOT change any value. Use api function instead
+ *              Do NOT define in any functions.
+*/
 typedef struct AppTrace{
     /* Private -----------------------------------------------------------*/
     TaskHandle_t    task_tx;
@@ -68,6 +82,13 @@ typedef struct AppTrace{
     StaticSemaphore_t lock_buffer;
     uint8_t           force_to_clear;
 
+#if RH_APP_CFG__DEBUG
+# if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK        
+    size_t            stack_water_mark;
+# endif
+    void              (*self_report)( void);
+#endif
+
 
     /* Public ------------------------------------------------------------*/
     u32 (*launch)( void);
@@ -76,10 +97,14 @@ typedef struct AppTrace{
     u32 (*isEmptyTX)( void);
     u32 (*isEmptyRX)( void);
 
+
     int (*exit)(void);
 
 }AppTrace_t;
 
+
+
+/* Exported variable ---------------------------------------------------------*/
 extern AppTrace_t g_AppTrace;
 
 

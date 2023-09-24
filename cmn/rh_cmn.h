@@ -66,7 +66,6 @@ enum CmnConst{
     kCmnConst__SPI2_TX_IRQ_PRIORITY      = 5      
 };
 
-#warning "Unused: kCmnConst__USART_BAUDRATE"
 
 /* Includes ------------------------------------------------------------------*/
 #include "rh_common.h"

@@ -48,19 +48,8 @@ enum CmnSpiFreq{
 
 
 typedef struct CmnSpi{
-    struct{
-        const u8           *data;
-        u32                 nItems;
-        u32                 nTimes;
-        TaskHandle_t        task_handle_dma_mgr;
-        TaskHandle_t        task_handle_blk;
-        SPI_HandleTypeDef   hw_handle;
-    }spi1;
     
     struct{
-        const u8           *data;
-        u32                 nItems;
-        u32                 nTimes; 
         TaskHandle_t        task_handle_dma_mgr;
         TaskHandle_t        task_handle_blk;
         SPI_HandleTypeDef   hw_handle;

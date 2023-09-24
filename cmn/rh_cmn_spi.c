@@ -198,20 +198,17 @@ static void rh_cmn_spi__tx_completed_callback( SPI_HandleTypeDef * hspi){
  *              Return 2 if `buf` or `len` is 0. Nothing to send
 */
 u32 rh_cmn_spi__send_dma( const u8 *buf, size_t nItems, size_t nTimes, u32 interval_delay_ms, u8* pDone){
-    if( nItems==0 || nTimes==0 || buf==NULL){
+    if( buf==NULL){
         return 1;
     }
+    if( nItems==0 || nTimes==0 ){
+        return 2;
+    }
 
-    g_CmnSpi.spi2.data   = buf;
-    g_CmnSpi.spi2.nItems = nItems;
-    g_CmnSpi.spi2.nTimes = nTimes;
-
-#warning "Use queue to save transfer info"
     g_CmnSpi.spi2.task_handle_dma_mgr = xTaskGetCurrentTaskHandle();
         
-
-    for( int i=0; i<g_CmnSpi.spi2.nTimes; ++i){
-        HAL_SPI_Transmit_DMA( &g_CmnSpi.spi2.hw_handle, (u8*)g_CmnSpi.spi2.data, g_CmnSpi.spi2.nItems);
+    for( int i=0; i<nTimes; ++i){
+        HAL_SPI_Transmit_DMA( &g_CmnSpi.spi2.hw_handle, (u8*)buf, nItems);
         
         /* Wait transmission completed */
         ulTaskNotifyTake( pdTRUE, portMAX_DELAY);

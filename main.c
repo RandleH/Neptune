@@ -174,7 +174,7 @@ void task_init( void *param){
     while(1){
         rh_cmn_gpio__init();                
         vTaskDelay(10);
-        rh_cmn_usart__init( 115200);
+        rh_cmn_usart__init( kCmnConst__USART_BAUDRATE);
         vTaskDelay(10);
         rh_cmn_spi__init( kCmnSpiFreq_48MHz);
         vTaskDelay(10);
