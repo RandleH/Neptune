@@ -104,13 +104,15 @@ void task_blink( void* param){
     static u8 cnt = 10;
     bool flag = true;
     while(1){
-        vTaskDelay(1000);
+        vTaskDelay(400);
         
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
+        g_AppTrace.message( "LED: Turn on\n");
         
-        vTaskDelay(1000);
+        vTaskDelay(400);
         
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
+        g_AppTrace.message( "LED: Turn off\n");
     
         if( cnt==0){
             if(flag==true){
@@ -133,24 +135,29 @@ void task_switch_color( void *param){
     u8 idx = 0;
     while(1){
         rh_cmn_memset16( g_Gram, color[idx%3], 30*30);
+        switch(idx%3){
+            case 0: g_AppTrace.message( "Screen: Switching color to red\n"); break;
+            case 1: g_AppTrace.message( "Screen: Switching color to green\n"); break;
+            case 2: g_AppTrace.message( "Screen: Switching color to blue\n"); break;
+            default: break;
+        }
         rh_bsp_screen__flush( g_Gram, 200, 100, 230-1, 130-1);
         ++idx;
-        vTaskDelay(1000);
+        vTaskDelay(700);
     }
 }
 
 
 void task_print_cpu_info( void* param){
     while(1){
-        taskENTER_CRITICAL();
-        rh_cmn_usart__printf( "------------------------------------------------\n");
-        rh_cmn_usart__printf( "System Core Frequency: %ld Hz\n", HAL_RCC_GetSysClockFreq());
-        rh_cmn_usart__printf( "AHB Clock Frequency: %ld Hz\n", HAL_RCC_GetHCLKFreq());
-        rh_cmn_usart__printf( "APB1 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK1Freq());
-        rh_cmn_usart__printf( "APB2 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK2Freq());
-        taskEXIT_CRITICAL();
+        g_AppTrace.message( "CPU Info Report ------------------------------------------------\n");
+        g_AppTrace.message( "CPU Info: System Core Frequency: %ld Hz\n", HAL_RCC_GetSysClockFreq());
+        g_AppTrace.message( "CPU Info: AHB Clock Frequency: %ld Hz\n", HAL_RCC_GetHCLKFreq());
+        g_AppTrace.message( "CPU Info: APB1 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK1Freq());
+        g_AppTrace.message( "CPU Info: APB2 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK2Freq());
+        
 
-        vTaskDelete(NULL);
+        vTaskDelay(10000);
     }
 }
 
@@ -159,11 +166,19 @@ void task_print_cpu_info( void* param){
 
 
 void task( void* param){
-    g_AppTrace.launch();
-
+    static u32 cnt = 0;
     while(1){
+        int a,b;
+        a=(rand()&0xff); b=(rand()&0xff);
+        g_AppTrace.message( "Arithmetic Function [%d]: %d+%d=%d\n", cnt++, a,b,a+b);
+        a=(rand()&0xff); b=(rand()&0xff);
+        g_AppTrace.message( "Arithmetic Function [%d]: %d-%d=%d\n", cnt++, a,b,a-b);
+        a=(rand()&0xff); b=(rand()&0xff);
+        g_AppTrace.message( "Arithmetic Function [%d]: %d*%d=%d\n", cnt++, a,b,a*b);
+        a=(rand()&0xff); b=(rand()&0xff);
+        g_AppTrace.message( "Arithmetic Function [%d]: %d/%d=%d\n", cnt++, a,b,b==0? 0xFFFFFFFF: (a/b));
         g_AppTrace.main( 0, 0);
-        vTaskDelay(1000);
+        vTaskDelay(500);
     }
 
     g_AppTrace.exit();
@@ -181,13 +196,13 @@ void task_init( void *param){
         rh_bsp_screen__init();
         vTaskDelay(10);
 
-        
+        g_AppTrace.launch();
 
         rh_cmn_clk__mco_enable();
 
         xTaskCreate( task_print_cpu_info, "USART task", 1024U, NULL, 40U, NULL);
         xTaskCreate( task_switch_color,   "Screen task", 1024U, NULL, 45U, NULL);
-        xTaskCreate( task_blink, "USART task", 1024U, NULL, 40U, NULL);
+        xTaskCreate( task_blink, "LED task", 1024U, NULL, 40U, NULL);
         xTaskCreate( task, "App Trace task", 1024U, NULL, 40U, NULL);
         vTaskDelete(NULL);
     }
