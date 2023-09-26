@@ -33,6 +33,9 @@
 #define self                                (&g_AppTrace)
 #define BUSY                                (0)
 #define IDLE                                (1)
+
+#define RET_OK                              (0)
+
 #define IS_ALL_FULL( client_ptr)            ((u8)(BUSY==(((client_ptr)->activity.mask_tx)&((client_ptr)->activity.mask_rx))))
 #define IS_TX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->activity.mask_tx)))
 #define IS_RX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->activity.mask_rx)))
@@ -42,12 +45,12 @@
 #define SET_RX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->activity.mask_rx |=  (1 << (idx)); }while(0)
 #define SET_TX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->activity.mask_tx &=  (~(1 << (idx))); }while(0)
 #define SET_RX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->activity.mask_rx &=  (~(1 << (idx))); }while(0)
-
+#define GET_IDX( client_ptr, buffer_addr )  ((AppTraceUnit_t*)(buffer_addr) - (AppTraceUnit_t*)(&((client_ptr)->activity.data[0])));
 
 /* Private function prototypes -----------------------------------------------*/
 static u8 get_buffer_usage( void);
 static void adjust_priority_task_tx( void);
-static u32 find_next_available( void);
+static u32  find_next_available( size_t length, size_t *offset, u32 *idx);
 
 static void task_func__tx( void* ptr);
 static void task_func__rx( void* ptr);
@@ -109,14 +112,36 @@ static void adjust_priority_task_tx( void){
 
 /**
  * @brief       Utility function - Find next available buffer
- * @note        Traverse each mask bit and find the first bit set to `1` which means error. The buffer idx will never greater than `32`.
- * @return      Return buffer idx.
+ * @note        Try to fit the buffer in the end of linked list. It not, then traverse each mask bit and find the first bit set to `1` which means idle. The buffer idx will never greater than `32` if the function returns  `RET_OK`.
+ * @param       length  [in]        Buffer length per requested
+ * @param       offset  [out]       The new buffer address will be: data[idx].addr[offset]
+ * @param       idx     [out]       The returned buffer idx
+ * @return      Return `RET_OK` if success.
+ *              Return 1 if no buffer available
 */
-static u32 find_next_available( void){
-    register u32 idx = 0;
-    register u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
-    while( BUSY==(mask_all&(1<<idx++)) );
-    return idx-1;
+static u32 find_next_available( size_t length, size_t *offset, u32 *idx){
+    rh_cmn__assert( offset!=NULL && idx!=NULL, "Can NOT return results since given NULL pointers.");
+    
+    /* In order to save memory, find from the end node of linked list first to see if possible to append */
+    /* If so, no need to assign a new buffer */
+    if( self->activity.anchor.pHead!=NULL && (void*)(self->activity.anchor.pEnd)!=(void*)(&self->activity.anchor) && PER_BUFFER_SIZE-self->activity.anchor.pEnd->len > length){
+        *offset = self->activity.anchor.pEnd->len;
+        *idx    = GET_IDX( self, self->activity.anchor.pEnd);
+        return RET_OK;
+    }
+
+    if( IS_ALL_FULL(self) ){
+        return 1;
+    }
+
+    u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+
+    *offset = 0;
+    *idx = 0;
+    while( BUSY==(mask_all&(1<<(*idx))) ){
+        ++(*idx);
+    }
+    return RET_OK;
 }
 
 #if RH_APP_CFG__DEBUG
@@ -125,22 +150,35 @@ static u32 find_next_available( void){
  * @note        
 */
 static void task_func_report( void* param){
+
+
+
     while(1){
+
+#if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK
+    int water_mark = self->stack_water_mark;
+#else
+    int water_mark = -1;
+#endif /* RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK */
+
         ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
         self->message( "App Trace Self Report -----------------------------\n"\
                        "Buffer Usage: %d/32\n"\
                        "TX Priority: %d\n"\
                        "RX Priority: %d\n"\
-                       "Highest Stack Watermark: %d\n",\ 
-                       get_buffer_usage(),\ 
+                       "Highest Stack Watermark: %d\n",\
+                       get_buffer_usage(),\
                        uxTaskPriorityGet(self->task_tx),\
-                       uxTaskPriorityGet(self->task_rx)\
-                       ,self->stack_water_mark\
-                       );
+                       uxTaskPriorityGet(self->task_rx),\
+                       water_mark);
+        /**
+        * @note Since self report was time sensitive, send message as soon as possible.
+        */
+        self->force_to_clear = true;
     }
     
 }
-#endif
+#endif /* RH_APP_CFG__DEBUG */
 
 
 /**
@@ -150,11 +188,6 @@ static void task_func_report( void* param){
  * @return      (none & will never exit)
 */
 static void task_func__tx( void* ptr){
-
-#if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK    
-    static UBaseType_t mark = 0;
-#endif  /* RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK */
-
     while(1){
         
         ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
@@ -170,15 +203,20 @@ static void task_func__tx( void* ptr){
                 
             /* Request access to shared resource */
             if( xSemaphoreTake( self->lock_handle, portMAX_DELAY)==pdTRUE){
-                /* Set to empty */
-                SET_TX_EMPTY_AT( self, idx);
-
                 if( self->activity.anchor.pHead->pNext==NULL ){
                     /* Reached the end of linked list */
                     self->activity.anchor.pEnd = (AppTraceUnit_t*)&self->activity.anchor;
                 }
                 /* Remove this node from linked list */
                 self->activity.anchor.pHead = self->activity.anchor.pHead->pNext;
+
+                /* Reset this node */
+                self->activity.data[idx].len   = 0;
+                self->activity.data[idx].pNext = NULL;
+                self->activity.data[idx].pPrev = NULL;
+
+                /* Set to empty */
+                SET_TX_EMPTY_AT( self, idx);
 
                 /* Free shared resource */
                 xSemaphoreGive( self->lock_handle);
@@ -251,52 +289,61 @@ static u32 launch( void){
  * @note        Thread safe function. 
 */
 static u32 message( const char *fmt, ...){
-    u32 res = 0;        /* Value about to return */
-    u8  idx = 0;        /* Idx for available buffer */
+    u32     ret    = RET_OK;        /* Value about to return */
+    u32     idx    = 0;    /* Idx for available buffer */
+    size_t  offset = 0;
 
     rh_cmn__assert( (0xFFFFFFFF==(self->activity.mask_tx | self->activity.mask_rx)), "TX RX buffer should NOT be overlapped" );
     
-    adjust_priority_task_tx();
-    
     /* Request access to shared resource */
     if( xSemaphoreTake( self->lock_handle, ((TickType_t)kAppConst__TRACE_MAX_WAIT_TICK)==pdTRUE) ){
-       
-        if( IS_ALL_FULL(self) ){
-            /* No buffer available */
-            res = 1;
-        }else{
-            /* Find an available buffer & Set to busy */
-            idx = find_next_available();
+        /* Find an available buffer */
+        if( RET_OK==find_next_available( 1+strlen(fmt), &offset, &idx) ){
+            
+            /* Found it, then validate the results */
             rh_cmn__assert( idx<32U, "Impossible, slot index is greater than 32 when buffer is NOT full");
-            SET_TX_FULL_AT( self, idx);
 
-            /* Append to the end */
-            self->activity.data[idx].pNext    = NULL;
-            if( self->activity.anchor.pHead!=NULL ){
-                /* Link list is NOT empty */
-                rh_cmn__assert( ((void*)self->activity.anchor.pEnd!=(void*)(&self->activity.anchor)), "Anchor off hook. Head & end node don't match.");
-                self->activity.anchor.pEnd->pNext = &self->activity.data[idx];
-                self->activity.data[idx].pPrev    = self->activity.anchor.pEnd;
-            }else{
-                /* Link list is empty */
-                rh_cmn__assert( self->activity.anchor.pEnd==(&self->activity.anchor), "Anchor off hook. Head & end node don't match.");
-                self->activity.anchor.pHead       = &self->activity.data[idx];
-                self->activity.data[idx].pPrev    = (AppTraceUnit_t*)&self->activity.anchor;
+            /**
+             * @note The combination of `idx` and `offset` can determine where memory can be written to. Here is the usage example.
+             * 
+             * @example: new_available_location = self->activity.data[idx].addr + offset
+             * 
+             * @note For memory saving purpose, `find_next_available() may or may NOT provide a buffer location`that was completely empty (marked as idle). Linked list add on only occurs when new empty buffer was designated. Therefore we need to further check the result from `find_next_available()`
+            */
+            if( false==IS_TX_FULL_AT( self, idx) ){
+                /* An idle buffer was designated by `find_next_available()` */
+                SET_TX_FULL_AT( self, idx);
+                /* Append to the end */
+                self->activity.data[idx].pNext    = NULL;
+                if( self->activity.anchor.pHead!=NULL ){
+                    /* Link list is NOT empty */
+                    rh_cmn__assert( ((void*)self->activity.anchor.pEnd!=(void*)(&self->activity.anchor)), "Anchor off hook. Head & end node don't match.");
+                    self->activity.anchor.pEnd->pNext = &self->activity.data[idx];
+                    self->activity.data[idx].pPrev    = self->activity.anchor.pEnd;
+                }else{
+                    /* Link list is empty */
+                    rh_cmn__assert( (void*)(self->activity.anchor.pEnd)==(void*)(&self->activity.anchor), "Anchor off hook. Head & end node don't match.");
+                    self->activity.anchor.pHead       = &self->activity.data[idx];
+                    self->activity.data[idx].pPrev    = (AppTraceUnit_t*)&self->activity.anchor;
+                }
+
+                /* Terminal node move to this */
+                self->activity.anchor.pEnd = &self->activity.data[idx];
             }
-
-            /* Terminal node move to this */
-            self->activity.anchor.pEnd = &self->activity.data[idx];
+        }else{
+            /* No available buffer */
+            ret = 1;
         }
 
         /* Free shared resource */
         xSemaphoreGive( self->lock_handle);
     }else{
         /* Busy */
-        res = 2;
+        ret = 2;
     }
     
-    if( res != 0 ){
-        return res;
+    if( ret != RET_OK ){
+        return ret;
     }
 
     /**
@@ -306,24 +353,29 @@ static u32 message( const char *fmt, ...){
     */
     va_list ap;
     va_start( ap, fmt);
-    const int len_max = sizeof(self->activity.data[0].addr);
-    int len = vsnprintf( self->activity.data[idx].addr, len_max, fmt, ap);
+    const int len_max = PER_BUFFER_SIZE-offset;
+    int len = vsnprintf( &(self->activity.data[idx].addr[offset]), len_max, fmt, ap);
     va_end(ap);
     
     /* Warning: Given message is too long & unable to print whole */
     if( len >= len_max ){
+        rh_cmn__assert( self->activity.data[idx].addr[PER_BUFFER_SIZE-1]=='\0', "String should be null terminated");
+
         /* Add ellipsis symbol at the end */
-        self->activity.data[idx].addr[len_max-2] = '.';
-        self->activity.data[idx].addr[len_max-3] = '.';
-        self->activity.data[idx].addr[len_max-4] = '.';
-        self->activity.data[idx].len             = len_max;
+        self->activity.data[idx].addr[PER_BUFFER_SIZE-2] = '.';
+        self->activity.data[idx].addr[PER_BUFFER_SIZE-3] = '.';
+        self->activity.data[idx].addr[PER_BUFFER_SIZE-4] = '.';
+        self->activity.data[idx].len             += len_max;
     }else{
-        self->activity.data[idx].len             = len;
+        self->activity.data[idx].len             += len;
     }
     /* Trigger to send message through hardware */
     xTaskNotifyGive( self->task_tx);
 
-    return 0;
+    /* Adjust priority when necessary */
+    adjust_priority_task_tx();
+
+    return RET_OK;
 } 
 
 

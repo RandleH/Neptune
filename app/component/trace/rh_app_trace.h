@@ -32,12 +32,14 @@
 #include "rh_app.h"         /* Description - Application Components */
 
 
+#define PER_BUFFER_SIZE     (1<<(kAppConst__TRACE_MESSAGE_BUFFER_SIZE_POW_LEVEL-5))
+
 /* Exported types ------------------------------------------------------------*/
 typedef struct AppTraceUnit{
     struct AppTraceUnit *pNext;
     struct AppTraceUnit *pPrev;
     size_t               len;       /*!< Buffer valid length in string */
-    u8                   addr[1<<(kAppConst__TRACE_MESSAGE_BUFFER_SIZE_POW_LEVEL-5)];
+    u8                   addr[PER_BUFFER_SIZE];
 }AppTraceUnit_t;
 
 
@@ -87,6 +89,7 @@ typedef struct AppTrace{
     size_t            stack_water_mark;
 # endif
     void              (*self_report)( void);
+    void              (*sanity_test)( void);
 #endif
 
 
