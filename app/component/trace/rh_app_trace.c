@@ -117,31 +117,52 @@ static void adjust_priority_task_tx( void){
  * @param       offset  [out]       The new buffer address will be: data[idx].addr[offset]
  * @param       idx     [out]       The returned buffer idx
  * @return      Return `RET_OK` if success.
- *              Return 1 if no buffer available
+ *              Return 1 if literally no buffer available. No matter how to assign, always overflowed.
+ *              Return 2 if buffer needs to split in order to fit.
 */
 static u32 find_next_available( size_t length, size_t *offset, u32 *idx){
     rh_cmn__assert( offset!=NULL && idx!=NULL, "Can NOT return results since given NULL pointers.");
     
-    /* In order to save memory, find from the end node of linked list first to see if possible to append */
-    /* If so, no need to assign a new buffer */
-    if( self->activity.anchor.pHead!=NULL && (void*)(self->activity.anchor.pEnd)!=(void*)(&self->activity.anchor) && PER_BUFFER_SIZE-self->activity.anchor.pEnd->len > length){
-        *offset = self->activity.anchor.pEnd->len;
-        *idx    = GET_IDX( self, self->activity.anchor.pEnd);
-        return RET_OK;
-    }
-
     if( IS_ALL_FULL(self) ){
         return 1;
     }
 
-    u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+    u32 ret = RET_OK;
 
-    *offset = 0;
-    *idx = 0;
-    while( BUSY==(mask_all&(1<<(*idx))) ){
-        ++(*idx);
+    /* In order to save memory, find from the end node of linked list first to see if possible to append */
+    if( self->activity.anchor.pHead!=NULL && (void*)(self->activity.anchor.pEnd)!=(void*)(&self->activity.anchor) && PER_BUFFER_SIZE!=self->activity.anchor.pEnd->len){
+
+        /* If linked list is NOT empty and end node is NOT full, that's being said still we have some available memory can be appended to the end node, no need to assign a new buffer slot */
+
+        *offset = self->activity.anchor.pEnd->len;
+        *idx    = GET_IDX( self, self->activity.anchor.pEnd);
+
+        /* However the length is NOT fit, needs to further split */
+        if( PER_BUFFER_SIZE-self->activity.anchor.pEnd->len < length ){
+            ret = 2;
+        }
+        
+    }else{
+
+        /* Otherwise, new buffer slot needs to be assigned */
+
+        u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+
+        *offset = 0;
+        *idx = 0;
+        while( BUSY==(mask_all&(1<<(*idx))) ){
+            ++(*idx);
+        }
+        
+        /* However the length is NOT fit, needs to further split */
+        if( length > PER_BUFFER_SIZE ){
+            ret = 2;
+        }
+        #warning "TODO: Optimization - Merge two conditions"
     }
-    return RET_OK;
+
+    
+    return ret;
 }
 
 #if RH_APP_CFG__DEBUG
@@ -151,9 +172,7 @@ static u32 find_next_available( size_t length, size_t *offset, u32 *idx){
 */
 static void task_func_report( void* param){
 
-
-
-    while(1){
+    while(1){ 
 
 #if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK
     int water_mark = self->stack_water_mark;
@@ -250,7 +269,30 @@ static void task_func__rx( void* ptr){
     }
 }
 
+static inline void push_back_node( u32 idx){
+    rh_cmn__assert( idx<32, "Buffer index can NOT greater than 32" );
 
+
+    self->activity.data[idx].pNext    = NULL;
+    if( self->activity.anchor.pHead!=NULL ){
+        /* Link list is NOT empty */
+        rh_cmn__assert( ((void*)self->activity.anchor.pEnd!=(void*)(&self->activity.anchor)), "Anchor off hook. Head & end node don't match.");
+        self->activity.anchor.pEnd->pNext = &self->activity.data[idx];
+        self->activity.data[idx].pPrev    = self->activity.anchor.pEnd;
+    }else{
+        /* Link list is empty */
+        rh_cmn__assert( (void*)(self->activity.anchor.pEnd)==(void*)(&self->activity.anchor), "Anchor off hook. Head & end node don't match.");
+        self->activity.anchor.pHead       = &self->activity.data[idx];
+        self->activity.data[idx].pPrev    = (AppTraceUnit_t*)&self->activity.anchor;
+    }
+
+    /* Terminal node move to this */
+    self->activity.anchor.pEnd = &self->activity.data[idx];
+}
+
+static inline void pop_front_node( u32 idx){
+
+}
 
 
 /**
@@ -289,51 +331,116 @@ static u32 launch( void){
  * @note        Thread safe function. 
 */
 static u32 message( const char *fmt, ...){
+    if( self->task_tx==NULL ){
+        /* App uninitialized */
+        return 3;
+    }
+
     u32     ret    = RET_OK;        /* Value about to return */
     u32     idx    = 0;    /* Idx for available buffer */
     size_t  offset = 0;
+    va_list args1, args2; va_start( args1, fmt); va_copy( args2, args1);
+    u32     len    = 1+vsnprintf( NULL, 0, fmt, args1); /* Required length for formatted string, including the terminal symbol '\0' */
+    va_end( args1);
 
     rh_cmn__assert( (0xFFFFFFFF==(self->activity.mask_tx | self->activity.mask_rx)), "TX RX buffer should NOT be overlapped" );
     
     /* Request access to shared resource */
     if( xSemaphoreTake( self->lock_handle, ((TickType_t)kAppConst__TRACE_MAX_WAIT_TICK)==pdTRUE) ){
         /* Find an available buffer */
-        if( RET_OK==find_next_available( 1+strlen(fmt), &offset, &idx) ){
-            
-            /* Found it, then validate the results */
-            rh_cmn__assert( idx<32U, "Impossible, slot index is greater than 32 when buffer is NOT full");
 
-            /**
-             * @note The combination of `idx` and `offset` can determine where memory can be written to. Here is the usage example.
-             * 
-             * @example: new_available_location = self->activity.data[idx].addr + offset
-             * 
-             * @note For memory saving purpose, `find_next_available() may or may NOT provide a buffer location`that was completely empty (marked as idle). Linked list add on only occurs when new empty buffer was designated. Therefore we need to further check the result from `find_next_available()`
-            */
-            if( false==IS_TX_FULL_AT( self, idx) ){
-                /* An idle buffer was designated by `find_next_available()` */
-                SET_TX_FULL_AT( self, idx);
-                /* Append to the end */
-                self->activity.data[idx].pNext    = NULL;
-                if( self->activity.anchor.pHead!=NULL ){
-                    /* Link list is NOT empty */
-                    rh_cmn__assert( ((void*)self->activity.anchor.pEnd!=(void*)(&self->activity.anchor)), "Anchor off hook. Head & end node don't match.");
-                    self->activity.anchor.pEnd->pNext = &self->activity.data[idx];
-                    self->activity.data[idx].pPrev    = self->activity.anchor.pEnd;
-                }else{
-                    /* Link list is empty */
-                    rh_cmn__assert( (void*)(self->activity.anchor.pEnd)==(void*)(&self->activity.anchor), "Anchor off hook. Head & end node don't match.");
-                    self->activity.anchor.pHead       = &self->activity.data[idx];
-                    self->activity.data[idx].pPrev    = (AppTraceUnit_t*)&self->activity.anchor;
+        switch(find_next_available( len, &offset, &idx)){
+            case RET_OK:{ /* Found - Found a buffer that fits the string */
+                /* Found it, then validate the results */
+                rh_cmn__assert( idx<32U, "Impossible, slot index is greater than 32 when buffer is NOT full.");
+                rh_cmn__assert( self->activity.data[idx].len+len<=PER_BUFFER_SIZE, "Expected buffer NOT overflowed.");
+                /**
+                 * @note The combination of `idx` and `offset` can determine where memory can be written to. Here is the usage example.
+                 * 
+                 * @example: new_available_location = self->activity.data[idx].addr + offset
+                 * 
+                 * @note For memory saving purpose, `find_next_available() may or may NOT provide a buffer location`that was completely empty (marked as idle). Linked list add on only occurs when new empty buffer was designated. Therefore we need to further check the result from `find_next_available()`
+                */
+                if( false==IS_TX_FULL_AT( self, idx) ){
+                    /* An idle buffer was designated by `find_next_available()` */
+                    rh_cmn__assert( self->activity.data[idx].len==0, "Idle buffer should have a length fo 0.");
+                    SET_TX_FULL_AT( self, idx);
+                    /* Append to the end */
+                    push_back_node(idx);
                 }
-
-                /* Terminal node move to this */
-                self->activity.anchor.pEnd = &self->activity.data[idx];
+                /**
+                 * @note The snprintf() and vsnprintf() functions will write at most size-1 of the characters printed into the output string (the size'th character then gets the terminating ‘\0’); if the return value is greater than or equal to the size argument, the string was too short and some of the printed characters were discarded.  The output is always null-terminated, unless size is 0.
+                */
+                vsnprintf( &(self->activity.data[idx].addr[offset]), PER_BUFFER_SIZE-offset, fmt, args2);
+                self->activity.data[idx].len += len;
+                break;/* End of case RET_OK */
             }
-        }else{
-            /* No available buffer */
-            ret = 1;
+            case 1:{ /* No available buffer */
+                ret = 1;
+                break;
+            }
+
+            case 2:{ /* Buffer Split - Buffer needs to split in order to fit. Try to avoid this case, extra time & memory cost */
+                size_t extra_len = len;
+                u8 *extra_buffer = alloca(extra_len);
+                if( extra_buffer==NULL ){
+                    #warning "TODO"
+                }else{
+                    u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+                    
+
+                    if( false==IS_TX_FULL_AT( self, idx) ){
+                        rh_cmn__assert( offset==0, "Expected offset==0");
+                        /* An idle buffer was designated by `find_next_available()` */
+                        SET_TX_FULL_AT( self, idx);
+                        /* Append to the end */
+                        push_back_node(idx);
+                    }
+
+                    /* Save the string temporary */
+                    vsnprintf( extra_buffer, extra_len, fmt, args2);
+
+                    /* Split the extra buffer piece by piece */
+                    size_t extra_idx = 0;
+                    memcpy( &(self->activity.data[idx].addr[offset]), &extra_buffer[extra_idx], PER_BUFFER_SIZE-offset );
+                    extra_idx                    += (PER_BUFFER_SIZE-offset);
+                    self->activity.data[idx].len += (PER_BUFFER_SIZE-offset);
+                    extra_len                    -= (PER_BUFFER_SIZE-offset);
+
+                    idx    = 0;
+                    while( extra_len!=0 ){
+                        while( BUSY==(mask_all&(1<<(idx))) && idx<32 ){
+                            ++(idx);
+                        }
+                        if( idx<32 ){
+                            SET_TX_FULL_AT( self, idx);
+                            push_back_node(idx);
+                            memcpy( &(self->activity.data[idx].addr[0]), &extra_buffer[extra_idx], RH_MIN(PER_BUFFER_SIZE, extra_len) );
+                            extra_idx                    += RH_MIN(PER_BUFFER_SIZE, extra_len);
+                            self->activity.data[idx].len += RH_MIN(PER_BUFFER_SIZE, extra_len);
+                            extra_len                    -= RH_MIN(PER_BUFFER_SIZE, extra_len);
+                        }else{
+                            rh_cmn__assert( idx==32, "Expected idx==32");
+                            break;
+                        }
+                    }
+
+                    if( idx==32 && extra_len!=0 ){
+                        #warning "TODO"
+                    }
+                }
+                
+                break;  /* End of case Buffer Split */
+            }
+
+            default:{
+                #warning "TODO"
+                break;
+            }
+                
         }
+
+        va_end(args2);
 
         /* Free shared resource */
         xSemaphoreGive( self->lock_handle);
@@ -341,41 +448,16 @@ static u32 message( const char *fmt, ...){
         /* Busy */
         ret = 2;
     }
-    
-    if( ret != RET_OK ){
-        return ret;
+
+    if( ret==RET_OK ){
+        /* Trigger to send message through hardware */
+        xTaskNotifyGive( self->task_tx);
+
+        /* Adjust priority when necessary */
+        adjust_priority_task_tx();
     }
-
-    /**
-     * @note The snprintf() and vsnprintf() functions will write at most size-1 of the characters printed into the output string (the size'th character then gets the terminating ‘\0’); if
-     the return value is greater than or equal to the size argument, the string was too short and some of the printed characters were discarded.  The output is always null-
-     terminated, unless size is 0.
-    */
-    va_list ap;
-    va_start( ap, fmt);
-    const int len_max = PER_BUFFER_SIZE-offset;
-    int len = vsnprintf( &(self->activity.data[idx].addr[offset]), len_max, fmt, ap);
-    va_end(ap);
     
-    /* Warning: Given message is too long & unable to print whole */
-    if( len >= len_max ){
-        rh_cmn__assert( self->activity.data[idx].addr[PER_BUFFER_SIZE-1]=='\0', "String should be null terminated");
-
-        /* Add ellipsis symbol at the end */
-        self->activity.data[idx].addr[PER_BUFFER_SIZE-2] = '.';
-        self->activity.data[idx].addr[PER_BUFFER_SIZE-3] = '.';
-        self->activity.data[idx].addr[PER_BUFFER_SIZE-4] = '.';
-        self->activity.data[idx].len             += len_max;
-    }else{
-        self->activity.data[idx].len             += len;
-    }
-    /* Trigger to send message through hardware */
-    xTaskNotifyGive( self->task_tx);
-
-    /* Adjust priority when necessary */
-    adjust_priority_task_tx();
-
-    return RET_OK;
+    return ret;
 } 
 
 
@@ -398,20 +480,16 @@ static int exit_function( void){
  * @return      Always return 0
 */
 static int main_function( int argc, const char*argv[]){
-    static u32 cnt = 0;
-    if( g_AppTrace.task_tx==NULL || g_AppTrace.task_rx==NULL ){
-        g_AppTrace.launch();
-    }
     
-    int a,b;
-    a=(rand()&0xff); b=(rand()&0xff);
-    g_AppTrace.message( "Message %d: %d+%d=%d\n", cnt++, a,b,a+b);
-    a=(rand()&0xff); b=(rand()&0xff);
-    g_AppTrace.message( "Message %d: %d-%d=%d\n", cnt++, a,b,a-b);
-    a=(rand()&0xff); b=(rand()&0xff);
-    g_AppTrace.message( "Message %d: %d*%d=%d\n", cnt++, a,b,a*b);
-    a=(rand()&0xff); b=(rand()&0xff);
-    g_AppTrace.message( "Message %d: %d/%d=%d\n", cnt++, a,b,b==0? 0xFFFFFFFF: (a/b));
+    g_AppTrace.message( "App Trace Self Report -----------------------------\n"\
+                        "Buffer Usage: %d/32\n"\
+                        "TX Priority: %d\n"\
+                        "RX Priority: %d\n"\
+                        "Highest Stack Watermark: %d\n",\
+                       get_buffer_usage(),\
+                       uxTaskPriorityGet(self->task_tx),\
+                       uxTaskPriorityGet(self->task_rx),\
+                       self->stack_water_mark);
 
     return 0;
 }
