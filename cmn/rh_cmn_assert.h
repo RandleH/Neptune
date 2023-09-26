@@ -16,6 +16,7 @@
 #define rh_cmn__assert( expr, reason)\
     do{\
         if( (expr) != true ){\
+            rh_cmn_usart__printf("\n\n\n");\
             rh_cmn_usart__printf( "[ERROR] Assertion triggered by %s()\n", __func__ );\
             rh_cmn_usart__printf( "Reason: %s \t %s: line %d\n", (reason), __FILE__, __LINE__);\
             __disable_irq();\
