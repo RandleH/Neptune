@@ -502,11 +502,11 @@ static int main_function( int argc, const char*argv[]){
  * @brief   
 */
 static inline u32 isEmptyTX( void){
-    return (self->activity.mask_tx==0x00000000 );
+    return (self->activity.mask_tx==0xFFFFFFFF );
 }
 
 static inline u32 isEmptyRX( void){
-    return (self->activity.mask_rx==0x00000000 );
+    return (self->activity.mask_rx==0xFFFFFFFF );
 }
 
 
