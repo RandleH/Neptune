@@ -58,10 +58,8 @@ static void task_func__rx( void* ptr);
 
 static u32 launch( void);
 static u32 message( const char *fmt, ...);
-static inline u32 isEmptyTX( void);
-static inline u32 isEmptyRX( void);
 static int main_function( int argc, const char*argv[]);
-static int exit_function( void);
+static int exit_function( int);
 
 
 
@@ -466,11 +464,11 @@ static u32 message( const char *fmt, ...){
  * @brief       Application exit function
  * @return      Always return 0
 */
-static int exit_function( void){
+static int exit_function( int status){
     vTaskDelete( g_AppTrace.task_tx);
     g_AppTrace.task_tx = NULL;
 
-    return 0;
+    return status;
 }
 
 /**
@@ -496,21 +494,6 @@ static int main_function( int argc, const char*argv[]){
 
 
 
-
-
-/**
- * @brief   
-*/
-static inline u32 isEmptyTX( void){
-    return (self->activity.mask_tx==0xFFFFFFFF );
-}
-
-static inline u32 isEmptyRX( void){
-    return (self->activity.mask_rx==0xFFFFFFFF );
-}
-
-
-
 /* Exported variable ---------------------------------------------------------*/
 AppTrace_t g_AppTrace = {
     .task_tx     = NULL,
@@ -526,8 +509,6 @@ AppTrace_t g_AppTrace = {
     .launch      = launch,
     .message     = message,
     .main        = main_function,
-    .isEmptyRX   = isEmptyRX,
-    .isEmptyTX   = isEmptyTX,
     .exit        = exit_function
 };
 

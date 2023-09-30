@@ -97,9 +97,6 @@ typedef struct AppTrace{
     u32 (*launch)( void);
     int (*main)( int argc, const char*argv[]);
     u32 (*message)( const char *fmt, ...);
-    u32 (*isEmptyTX)( void);
-    u32 (*isEmptyRX)( void);
-
 
     int (*exit)(void);
 
