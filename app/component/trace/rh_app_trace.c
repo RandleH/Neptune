@@ -51,6 +51,9 @@
 static u8   util__get_buffer_usage( void);
 static void util__adjust_priority_task_tx( void);
 static u32  util__get_next_available( size_t required_length);
+static void util__push_back_node( u32 idx);
+static void util__pop_front_node( u32 idx);
+
 
 static void task_func__tx( void* ptr);
 static void task_func__rx( void* ptr);
@@ -267,7 +270,7 @@ static void task_func__rx( void* ptr){
     }
 }
 
-static inline void push_back_node( u32 idx){
+static inline void util__push_back_node( u32 idx){
     rh_cmn__assert( idx<32, "Buffer index can NOT greater than 32" );
 
 
@@ -288,7 +291,7 @@ static inline void push_back_node( u32 idx){
     self->buffer.anchor.pEnd = &self->buffer.slot[idx];
 }
 
-static inline void pop_front_node( u32 idx){
+static inline void util__pop_front_node( u32 idx){
 
 }
 
@@ -362,7 +365,7 @@ static u32 message( const char *fmt, ...){
                 rh_cmn__assert( self->buffer.slot[idx].len==0, "Idle buffer should have a length fo 0.");
                 SET_TX_FULL_AT( self, idx);
                 /* Append to the end */
-                push_back_node(idx);
+                util__push_back_node(idx);
             }
 
             if( self->buffer.slot[idx].len+len>PER_BUFFER_SIZE ){
@@ -386,7 +389,7 @@ static u32 message( const char *fmt, ...){
                     }
                     if( idx<32 ){
                         SET_TX_FULL_AT( self, idx);
-                        push_back_node(idx);
+                        util__push_back_node(idx);
                         memcpy( &(self->buffer.slot[idx].addr[0]), &extra_buffer[extra_idx], RH_MIN(PER_BUFFER_SIZE, extra_len) );
                         extra_idx                    += RH_MIN(PER_BUFFER_SIZE, extra_len);
                         self->buffer.slot[idx].len += RH_MIN(PER_BUFFER_SIZE, extra_len);

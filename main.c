@@ -182,7 +182,7 @@ void task( void* param){
         vTaskDelay(100);
     }
 
-    g_AppTrace.exit();
+    g_AppTrace.exit(0);
 }
 
 void task_mem_preview( void* param){
