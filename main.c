@@ -17,6 +17,7 @@
   ******************************************************************************
   */
 
+#include <stdlib.h>
 
 #include "rh_bsp.h"
 
@@ -107,12 +108,12 @@ void task_blink( void* param){
         vTaskDelay(400);
         
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        g_AppTrace.message( "LED: Turn on\n");
+        g_AppTrace.message( "LED: Turn on\r\n");
         
         vTaskDelay(400);
         
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        g_AppTrace.message( "LED: Turn off\n");
+        g_AppTrace.message( "LED: Turn off\r\n");
     
         if( cnt==0){
             if(flag==true){
@@ -136,9 +137,9 @@ void task_switch_color( void *param){
     while(1){
         rh_cmn_memset16( g_Gram, color[idx%3], 30*30);
         switch(idx%3){
-            case 0: g_AppTrace.message( "Screen: Switching color to red\n"); break;
-            case 1: g_AppTrace.message( "Screen: Switching color to green\n"); break;
-            case 2: g_AppTrace.message( "Screen: Switching color to blue\n"); break;
+            case 0: g_AppTrace.message( "Screen: Switching color to red\r\n"); break;
+            case 1: g_AppTrace.message( "Screen: Switching color to green\r\n"); break;
+            case 2: g_AppTrace.message( "Screen: Switching color to blue\r\n"); break;
             default: break;
         }
         rh_bsp_screen__flush( g_Gram, 200, 100, 230-1, 130-1);
@@ -150,11 +151,11 @@ void task_switch_color( void *param){
 
 void task_print_cpu_info( void* param){
     while(1){
-        g_AppTrace.message( "CPU Info Report ------------------------------------------------\n");
-        g_AppTrace.message( "CPU Info: System Core Frequency: %ld Hz\n", HAL_RCC_GetSysClockFreq());
-        g_AppTrace.message( "CPU Info: AHB Clock Frequency: %ld Hz\n", HAL_RCC_GetHCLKFreq());
-        g_AppTrace.message( "CPU Info: APB1 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK1Freq());
-        g_AppTrace.message( "CPU Info: APB2 Clock Frequency: %ld Hz\n", HAL_RCC_GetPCLK2Freq());
+        g_AppTrace.message( "CPU Info Report ------------------------------------------------\r\n");
+        g_AppTrace.message( "CPU Info: System Core Frequency: %ld Hz\r\n", HAL_RCC_GetSysClockFreq());
+        g_AppTrace.message( "CPU Info: AHB Clock Frequency: %ld Hz\r\n", HAL_RCC_GetHCLKFreq());
+        g_AppTrace.message( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
+        g_AppTrace.message( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
         
 
         vTaskDelay(10000);
@@ -170,18 +171,39 @@ void task( void* param){
     while(1){
         int a,b;
         a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d+%d=%d\n", cnt++, a,b,a+b);
+        g_AppTrace.message( "Arithmetic Function [%d]: %d+%d=%d\r\n", cnt++, a,b,a+b);
         a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d-%d=%d\n", cnt++, a,b,a-b);
+        g_AppTrace.message( "Arithmetic Function [%d]: %d-%d=%d\r\n", cnt++, a,b,a-b);
         a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d*%d=%d\n", cnt++, a,b,a*b);
+        g_AppTrace.message( "Arithmetic Function [%d]: %d*%d=%d\r\n", cnt++, a,b,a*b);
         a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d/%d=%d\n", cnt++, a,b,b==0? 0xFFFFFFFF: (a/b));
+        g_AppTrace.message( "Arithmetic Function [%d]: %d/%d=%d\r\n", cnt++, a,b,b==0? 0xFFFFFFFF: (a/b));
         g_AppTrace.main( 0, 0);
-        vTaskDelay(500);
+        vTaskDelay(100);
     }
 
     g_AppTrace.exit();
+}
+
+void task_mem_preview( void* param){
+    extern uint8_t *ucHeap;
+    while(1){
+        size_t offset = rand()%configTOTAL_HEAP_SIZE;
+        size_t len    = rand()%(configTOTAL_HEAP_SIZE-offset);
+        len = RH_MIN( 512, len);
+        const u8* ptr = ucHeap+offset;
+        g_AppTrace.message("Memory Preview @%p length=%ld\r\n", ptr, len);
+
+        taskENTER_CRITICAL();
+        for(int i=0; i<len; ++i){
+            g_AppTrace.message("%02x ", *ptr++);
+        }
+
+        g_AppTrace.message("\r\n");
+        taskEXIT_CRITICAL();
+        vTaskDelay(756);
+    }
+    
 }
 
 
@@ -203,7 +225,8 @@ void task_init( void *param){
         xTaskCreate( task_print_cpu_info, "USART task", 1024U, NULL, 40U, NULL);
         xTaskCreate( task_switch_color,   "Screen task", 1024U, NULL, 45U, NULL);
         xTaskCreate( task_blink, "LED task", 1024U, NULL, 40U, NULL);
-        xTaskCreate( task, "App Trace task", 1024U, NULL, 40U, NULL);
+        xTaskCreate( task, "App Trace task", 1024U, NULL, 45U, NULL);
+        xTaskCreate( task_mem_preview, "Mem Preview task", 1024U, NULL, 46U, NULL);
         vTaskDelete(NULL);
     }
 }
