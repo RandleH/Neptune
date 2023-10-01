@@ -397,11 +397,14 @@ static u32 launch( void){
 /**
  * @brief       Append format message to buffer. Message will be sent out when in idle process
  * @note        Thread safe function. 
+ * @retval      Return 0 if success
+ *              Return 1 if data partially send due to the buffer overflow
+ *              Return 2 if failed
 */
 static u32 message( const char *fmt, ...){
-    if( self->task_tx==NULL ){
+    if( self->task_tx==NULL || fmt==NULL ){
         /* App uninitialized */
-        return 3;
+        return 2;
     }
 
     u32     ret    = RET_OK;        /* Value about to return */
@@ -466,7 +469,8 @@ static u32 message( const char *fmt, ...){
                     extra_buffer = pvPortMalloc(len);
                     extra_len    = len;
                     if( NULL==extra_buffer ){
-                        #warning "Do something"
+                        ret = 3; /* Failed */
+                        break;
                     }
                 }
 
@@ -509,6 +513,7 @@ static u32 message( const char *fmt, ...){
                 break;
             }
         }/* End of data import */
+
 
         va_end(args2);
 
