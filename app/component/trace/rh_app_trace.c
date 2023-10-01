@@ -63,7 +63,8 @@
 enum SlotStatus {
     kSlotStatusGood      = 0,       /* Perfect slot. Data can completely fit in */
     kSlotStatusCompact   = 1,       /* Data partially fit in. Another slot memory needed which may not always be available */
-    kSlotStatusInvalid   = 2        /* Invalid slot. Do NOT use */
+    kSlotStatusInvalid   = 2,       /* Invalid slot. Do NOT use */
+    lSlotStatusPartial   = 3        /* Data ONLY can be partially sent */
 };
 
 /**
@@ -300,7 +301,6 @@ static void task_func__tx( void* ptr){
                 /* Reset this node */
                 self->buffer.slot[idx].len   = 0;
                 self->buffer.slot[idx].pNext = NULL;
-                self->buffer.slot[idx].pPrev = NULL;
 
                 /* Set to empty */
                 SET_TX_EMPTY_AT( self, idx);
@@ -346,12 +346,10 @@ static inline void util__push_back_node( u32 idx){
         /* Link list is NOT empty */
         rh_cmn__assert( ((void*)self->buffer.anchor.pEnd!=(void*)(&self->buffer.anchor)), "Anchor off hook. Head & end node don't match.");
         self->buffer.anchor.pEnd->pNext = &self->buffer.slot[idx];
-        self->buffer.slot[idx].pPrev    = self->buffer.anchor.pEnd;
     }else{
         /* Link list is empty */
         rh_cmn__assert( (void*)(self->buffer.anchor.pEnd)==(void*)(&self->buffer.anchor), "Anchor off hook. Head & end node don't match.");
         self->buffer.anchor.pHead       = &self->buffer.slot[idx];
-        self->buffer.slot[idx].pPrev    = (AppTraceUnit_t*)&self->buffer.anchor;
     }
 
     /* Terminal node move to this */

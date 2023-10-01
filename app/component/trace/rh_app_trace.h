@@ -37,7 +37,6 @@
 /* Exported types ------------------------------------------------------------*/
 typedef struct AppTraceUnit{
     struct AppTraceUnit *pNext;
-    struct AppTraceUnit *pPrev;
     size_t               len;       /*!< Buffer valid length in string */
     u8                   addr[PER_BUFFER_SIZE];
 }AppTraceUnit_t;
@@ -88,8 +87,7 @@ typedef struct AppTrace{
 # if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK        
     size_t            stack_water_mark;
 # endif
-    void              (*self_report)( void);
-    void              (*sanity_test)( void);
+
 #endif
 
 
