@@ -35,22 +35,53 @@
 #define IDLE                                (1)
 
 #define RET_OK                              (0)
+#define RET_BUSY                            (1)
+
+#define INVALID_SLOT_IDX                    (32U)
+
 
 #define IS_ALL_FULL( client_ptr)            ((u8)(BUSY==(((client_ptr)->buffer.mask_tx)&((client_ptr)->buffer.mask_rx))))
 #define IS_TX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->buffer.mask_tx)))
 #define IS_RX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->buffer.mask_rx)))
 #define IS_TX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->buffer.mask_tx & (1 << (idx)))))
 #define IS_RX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->buffer.mask_rx & (1 << (idx)))))
+#define IS_EMPTY_LL( client_ptr)            (0xFFFFFFFF==(((client_ptr)->buffer.mask_tx)&((client_ptr)->buffer.mask_rx)))
+#define IS_SLOT_EXSIT( client_ptr)          (((client_ptr)->buffer.anchor.pHead!=NULL) && ((void*)((client_ptr)->buffer.anchor.pEnd)!=(void*)(&(client_ptr)->buffer.anchor)))
+
+
 #define SET_TX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->buffer.mask_tx |=  (1 << (idx)); }while(0)
 #define SET_RX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->buffer.mask_rx |=  (1 << (idx)); }while(0)
 #define SET_TX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->buffer.mask_tx &=  (~(1 << (idx))); }while(0)
 #define SET_RX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->buffer.mask_rx &=  (~(1 << (idx))); }while(0)
 #define GET_IDX( client_ptr, buffer_addr )  ((AppTraceUnit_t*)(buffer_addr) - (AppTraceUnit_t*)(&((client_ptr)->buffer.slot[0])));
 
+
+/**
+ * @brief   Private Enumeration. 
+ * @note    Only adopted in `util__get_next_available()` to indicate the result
+*/
+enum SlotStatus {
+    kSlotStatusGood      = 0,       /* Perfect slot. Data can completely fit in */
+    kSlotStatusCompact   = 1,       /* Data partially fit in. Another slot memory needed which may not always be available */
+    kSlotStatusInvalid   = 2        /* Invalid slot. Do NOT use */
+};
+
+/**
+ * @brief   Private Structure. 
+ * @note    Only returned by `util__get_next_available()` to indicate the result
+*/
+struct SlotInfo{
+    enum SlotStatus status;
+    u8              idx;
+};
+typedef struct SlotInfo SlotInfo_t;
+
+
 /* Private function prototypes -----------------------------------------------*/
-static u8   util__get_buffer_usage( void);
+static size_t util__get_buffer_remaining_byte( void);
+static u8   util__get_buffer_remaining_slot( void);
 static void util__adjust_priority_task_tx( void);
-static u32  util__get_next_available( size_t required_length);
+static void util__get_next_available( size_t required_length, SlotInfo_t *return_result);
 static void util__push_back_node( u32 idx);
 static void util__pop_front_node( u32 idx);
 
@@ -68,13 +99,31 @@ static int exit_function( int);
 
 
 /* Private functions ---------------------------------------------------------*/
+
+/**
+ * 
+*/
+static size_t util__get_buffer_remaining_byte( void){
+    if( IS_EMPTY_LL(self) ){
+        return (1<<(kAppConst__TRACE_MESSAGE_BUFFER_SIZE_POW_LEVEL));
+    }
+
+    /**
+     * @note    Equivalent Condition: 
+     * @param   a  Remaining memory in the last buffer slot := PER_BUFFER_SIZE-self->activity.anchor.pEnd->len   
+     * @param   b  Idle buffer slot counts := 32-get_buffer_usage()
+     * @retval  ans := a + PER_BUFFER_SIZE * b
+    */
+    return (size_t)((PER_BUFFER_SIZE<<5) + PER_BUFFER_SIZE - PER_BUFFER_SIZE*util__get_buffer_remaining_slot() - self->buffer.anchor.pEnd->len);
+}
+
 /**
  * @brief       Utility function - Get buffer usage. Return a value in the scale of [0~32]
  * @note        Typically count how many bits was set to 0 in mask
  *              Assertion may oaccurs when return value larger than 32.
  * @return      Return buffer usage <=32
 */
-static u8 util__get_buffer_usage( void){
+static u8 util__get_buffer_remaining_slot( void){
     u32 value = self->buffer.mask_tx & self->buffer.mask_rx;
     value = ( value & 0x55555555 ) + ( (value >>1)  & 0x55555555 );
     value = ( value & 0x33333333 ) + ( (value >>2)  & 0x33333333 );
@@ -95,7 +144,7 @@ static u8 util__get_buffer_usage( void){
  * @return      (none)
 */
 static void util__adjust_priority_task_tx( void){
-    u8 usage = util__get_buffer_usage();
+    u8 usage = util__get_buffer_remaining_slot();
     if( usage>30 ){
         /* Immediately clear buffer */
         self->force_to_clear = true;
@@ -121,48 +170,66 @@ static void util__adjust_priority_task_tx( void){
  *              Return 1 if literally no buffer available. No matter how to assign, always overflowed.
  *              Return 2 if buffer needs to split in order to fit.
 */
-static u32  util__get_next_available( size_t required_length){
-    
-    if( IS_ALL_FULL(self) ){
-        return UINT32_MAX;
-    }
+static void util__get_next_available( size_t required_length, SlotInfo_t *return_result){
+    rh_cmn__assert( NULL!=return_result, "Can NOT place results to a null pointer.");
 
+    if( IS_SLOT_EXSIT(self)){
+        /* Existing slots in use */
+        if( self->buffer.anchor.pEnd->len+required_length <= PER_BUFFER_SIZE ){
+            /* Best case. Just append to the end */
+            return_result->status = kSlotStatusGood;
+            return_result->idx    = GET_IDX( self, self->buffer.anchor.pEnd);
+        }else if( required_length <= PER_BUFFER_SIZE && false==IS_ALL_FULL(self) ){
+            /* New slot assigned. Enough space to fit in */
+            return_result->status = kSlotStatusGood;
+            return_result->idx    = 0;
+            while( BUSY==(self->buffer.mask_rx&self->buffer.mask_tx&(1<<(return_result->idx))) ){
+                ++return_result->idx;
+            }
+            rh_cmn__assert( return_result->idx<32, "Impossible.");
+        }else{
+            if( required_length <= util__get_buffer_remaining_byte() ){
+                return_result->status = kSlotStatusCompact;
 
-    u32 idx = UINT32_MAX;
-
-    /* In order to save memory, find from the end node of linked list first to see if possible to append */
-    if( self->buffer.anchor.pHead!=NULL && (void*)(self->buffer.anchor.pEnd)!=(void*)(&self->buffer.anchor) && PER_BUFFER_SIZE!=self->buffer.anchor.pEnd->len){
-
-        /* If linked list is NOT empty and end node is NOT full, that's being said still we have some available memory can be appended to the end node, no need to assign a new buffer slot */
-
-        idx    = GET_IDX( self, self->buffer.anchor.pEnd);
-
-        /* However the length is NOT fit, needs to further split */
-        // if( PER_BUFFER_SIZE-self->buffer.anchor.pEnd->len < length ){
-        //     ret = 2;
-        // }
-        
+                /**
+                 * @note Either condition will result in same solution exentually in `message()`
+                 * @note If current slot is full, and returned result designats this full slot index, then it will result a passing length of `0` of copying item in `message()`. Error may or may NOT occur. Therefore here to take a further check to avoid that condition.
+                */
+                if( self->buffer.anchor.pEnd->len==PER_BUFFER_SIZE ){
+                    /* Assign a new slot */
+                    return_result->idx    = 0;
+                    while( BUSY==(self->buffer.mask_rx&self->buffer.mask_tx&(1<<(return_result->idx))) ){
+                        ++return_result->idx;
+                    }
+                    rh_cmn__assert( return_result->idx<32, "Impossible.");
+                }else{
+                    /* Append to the end */
+                    return_result->idx    = GET_IDX( self, self->buffer.anchor.pEnd);
+                }
+            }else{
+                /* Always overflow. Length is too long */
+                return_result->status = kSlotStatusInvalid;
+                return_result->idx    = INVALID_SLOT_IDX;
+            }
+        }
     }else{
-
-        /* Otherwise, new buffer slot needs to be assigned */
-
-        u32 mask_all = (self->buffer.mask_rx & self->buffer.mask_tx);
-
-        
-        idx = 0;
-        while( BUSY==(mask_all&(1<<idx)) ){
-            ++idx;
+        /* Empty buffer. All slots are idle */
+        if( required_length <= PER_BUFFER_SIZE){
+            /* Best case & easy. Just assign a new slot with index 0 */
+            return_result->status = kSlotStatusGood;
+            return_result->idx    = 0;
+        }else{
+            if( required_length <= PER_BUFFER_SIZE*32 ){
+                /* New slot assigned. But more slots needed */
+                return_result->status = kSlotStatusCompact;
+                return_result->idx    = 0;
+            }else{
+                /* Entire buffer (all slots) assigned, still not able to fit. Message is way too long */
+                return_result->status = kSlotStatusInvalid;
+                return_result->idx    = INVALID_SLOT_IDX;
+            }
         }
-        
-        /* However the length is NOT fit, needs to further split */
-        if( idx==32 ){
-            idx = UINT32_MAX;
-        }
-    
     }
-
-    
-    return idx;
 }
 
 #if RH_APP_CFG__DEBUG
@@ -186,7 +253,7 @@ static void task_func_report( void* param){
                        "TX Priority: %d\r\n"\
                        "RX Priority: %d\r\n"\
                        "Highest Stack Watermark: %d\r\n",\
-                       util__get_buffer_usage(),\
+                       util__get_buffer_remaining_slot(),\
                        uxTaskPriorityGet(self->task_tx),\
                        uxTaskPriorityGet(self->task_rx),\
                        water_mark);
@@ -338,7 +405,6 @@ static u32 message( const char *fmt, ...){
     }
 
     u32     ret    = RET_OK;        /* Value about to return */
-    u32     idx    = 0;    /* Idx for available buffer */
     va_list args1, args2; va_start( args1, fmt); va_copy( args2, args1);
     u32     len    = 1+vsnprintf( NULL, 0, fmt, args1); /* Required length for formatted string, including the terminal symbol '\0' */
     va_end( args1);
@@ -348,70 +414,101 @@ static u32 message( const char *fmt, ...){
     /* Request access to shared resource */
     if( xSemaphoreTake( self->lock_handle, 50) ){
         /* Find an available buffer */
+        SlotInfo_t slot = {0};
+        util__get_next_available(len, &slot);
 
-        idx = util__get_next_available(len);
 
-        if( idx==UINT32_MAX ){
-            /* No available buffer */
-            ret = 1;
-        }else{
-            rh_cmn__assert( idx<32, "Index can NOT exceed 32.");
-
+        if( slot.status==kSlotStatusGood || slot.status==kSlotStatusCompact ){
             /**
              * @note For memory saving purpose, `util__get_next_available() may or may NOT provide a buffer location`that was completely empty (marked as idle). Linked list add on only occurs when new empty buffer was designated. Therefore we need to further check the result from `util__get_next_available()`
             */
-            if( false==IS_TX_FULL_AT( self, idx) ){
+            if( false==IS_TX_FULL_AT( self, slot.idx) ){
                 /* An idle buffer was designated by `util__get_next_available()` */
-                rh_cmn__assert( self->buffer.slot[idx].len==0, "Idle buffer should have a length fo 0.");
-                SET_TX_FULL_AT( self, idx);
+                rh_cmn__assert( self->buffer.slot[slot.idx].len==0, "Idle buffer should have a length fo 0.");
+                SET_TX_FULL_AT( self, slot.idx);
                 /* Append to the end */
-                util__push_back_node(idx);
-            }
-
-            if( self->buffer.slot[idx].len+len>PER_BUFFER_SIZE ){
-                /* Save temporarily & Copy piece by piece */
-                size_t offset       = self->buffer.slot[idx].len;
-                size_t extra_len    = len;
-                u8 *   extra_buffer = alloca(extra_len);
-                vsnprintf( extra_buffer, extra_len, fmt, args2);
-
-                size_t extra_idx = 0;
-                memcpy( &(self->buffer.slot[idx].addr[offset]), &extra_buffer[extra_idx], PER_BUFFER_SIZE-offset );
-                extra_idx                    += (PER_BUFFER_SIZE-offset);
-                self->buffer.slot[idx].len += (PER_BUFFER_SIZE-offset);
-                extra_len                    -= (PER_BUFFER_SIZE-offset);
-
-                idx    = 0;
-                while( extra_len!=0 ){
-                    u32 mask_all = (self->buffer.mask_rx & self->buffer.mask_tx);
-                    while( BUSY==(mask_all&(1<<(idx))) && idx<32 ){
-                        ++(idx);
-                    }
-                    if( idx<32 ){
-                        SET_TX_FULL_AT( self, idx);
-                        util__push_back_node(idx);
-                        memcpy( &(self->buffer.slot[idx].addr[0]), &extra_buffer[extra_idx], RH_MIN(PER_BUFFER_SIZE, extra_len) );
-                        extra_idx                    += RH_MIN(PER_BUFFER_SIZE, extra_len);
-                        self->buffer.slot[idx].len += RH_MIN(PER_BUFFER_SIZE, extra_len);
-                        extra_len                    -= RH_MIN(PER_BUFFER_SIZE, extra_len);
-                    }else{
-                        rh_cmn__assert( idx==32, "Expected idx==32");
-                        break;
-                    }
-                }
-
-                if( idx==32 && extra_len!=0 ){
-                    #warning "TODO"
-                }
-            }else{
-                /* Write to buffer directly */
-                /**
-                 * @note The snprintf() and vsnprintf() functions will write at most size-1 of the characters printed into the output string (the size'th character then gets the terminating ‘\0’); if the return value is greater than or equal to the size argument, the string was too short and some of the printed characters were discarded.  The output is always null-terminated, unless size is 0.
-                */
-                vsnprintf( &(self->buffer.slot[idx].addr[self->buffer.slot[idx].len]), PER_BUFFER_SIZE-self->buffer.slot[idx].len, fmt, args2);
-                self->buffer.slot[idx].len += len;
+                util__push_back_node(slot.idx);
             }
         }
+
+        switch( slot.status){
+            case kSlotStatusGood:{
+                /**
+                 * @note Write to buffer directly
+                 * @note The snprintf() and vsnprintf() functions will write at most size-1 of the characters printed into the output string (the size'th character then gets the terminating ‘\0’); if the return value is greater than or equal to the size argument, the string was too short and some of the printed characters were discarded.  The output is always null-terminated, unless size is 0.
+                */
+                vsnprintf( &(self->buffer.slot[slot.idx].addr[self->buffer.slot[slot.idx].len]), PER_BUFFER_SIZE-self->buffer.slot[slot.idx].len, fmt, args2);
+                self->buffer.slot[slot.idx].len += len;
+                break;
+            }
+            case kSlotStatusCompact:{
+                /* Save temporarily & Copy piece by piece */
+                u8 *   extra_buffer = NULL;
+                u8 *   extra_buffer_ptr = NULL;
+                u32    extra_len    = 0;
+                u8     use_heap     = false;
+
+                /**
+                 * @brief       FreeRTOS API: `uxTaskGetStackHighWaterMark()`
+                 * @note        The stack used by a task will grow and shrink as the task executes and interrupts are processed.  uxTaskGetStackHighWaterMark() returns the minimum amount of remaining stack space that was available to the task since the task started executing - that is the amount of stack that remained unused when the task stack was at its greatest (deepest) value.  This is what is referred to as the stack 'high water mark'.
+                 * @note        The value returned is the high water mark in words
+                 * @example     On a 32 bit machine a return value of 1 would indicate that 4 bytes of stack were unused. If the return value is zero then the task has likely overflowed its stack. 
+                 * @attention   If the return value is close to zero then the task has come close to overflowing its stack.
+                */
+                /* Check if stack will be overflowed */
+                u32 remaining_stack_in_bytes = uxTaskGetStackHighWaterMark(NULL)<<2;
+                if( remaining_stack_in_bytes>=len ){
+                    use_heap     = false;
+                    extra_buffer = alloca(len);
+                    extra_len    = len;
+                }else{
+                    use_heap     = true;
+                    extra_buffer = pvPortMalloc(len);
+                    extra_len    = len;
+                    if( NULL==extra_buffer ){
+                        #warning "Do something"
+                    }
+                }
+
+                /* Preparation before copy. Clean stash */
+                vsnprintf( extra_buffer, extra_len, fmt, args2);
+                extra_buffer_ptr = extra_buffer;
+                memcpy( &(self->buffer.slot[slot.idx].addr[self->buffer.slot[slot.idx].len]), extra_buffer_ptr, PER_BUFFER_SIZE-self->buffer.slot[slot.idx].len );
+                extra_buffer_ptr += PER_BUFFER_SIZE-self->buffer.slot[slot.idx].len;
+                extra_len        -= PER_BUFFER_SIZE-self->buffer.slot[slot.idx].len;
+                self->buffer.slot[slot.idx].len = PER_BUFFER_SIZE;
+                
+
+                /* Begin copy loop */
+                slot.idx          = 0;
+                while( extra_len!=0 && slot.idx<32 ){
+                    u32 mask_all    = (self->buffer.mask_rx & self->buffer.mask_tx);
+                    u32 copy_length = RH_MIN(PER_BUFFER_SIZE, extra_len);
+                    while( BUSY==(mask_all&(1<<(slot.idx))) && slot.idx<32 ){
+                        ++(slot.idx);
+                    }
+                    SET_TX_FULL_AT( self, slot.idx);
+                    util__push_back_node(slot.idx);
+                    memcpy( self->buffer.slot[slot.idx].addr, extra_buffer_ptr, copy_length );
+                    extra_buffer_ptr                += copy_length;
+                    extra_len                       -= copy_length;
+                    self->buffer.slot[slot.idx].len += copy_length;
+                }
+
+                if( use_heap==true ){
+                    vPortFree(extra_buffer);
+                }
+                break;
+            }
+            case kSlotStatusInvalid:{
+                ret = 3;
+                break;
+            }
+            default:{
+                rh_cmn__assert( false, "util() returned an impossible results.");
+                break;
+            }
+        }/* End of data import */
 
         va_end(args2);
 
@@ -459,7 +556,7 @@ static int main_function( int argc, const char*argv[]){
                         "TX Priority: %d\r\n"\
                         "RX Priority: %d\r\n"\
                         "Highest Stack Watermark: %d\r\n",\
-                       util__get_buffer_usage(),\
+                       util__get_buffer_remaining_slot(),\
                        uxTaskPriorityGet(self->task_tx),\
                        uxTaskPriorityGet(self->task_rx),\
                        self->stack_water_mark);
