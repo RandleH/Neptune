@@ -36,16 +36,16 @@
 
 #define RET_OK                              (0)
 
-#define IS_ALL_FULL( client_ptr)            ((u8)(BUSY==(((client_ptr)->activity.mask_tx)&((client_ptr)->activity.mask_rx))))
-#define IS_TX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->activity.mask_tx)))
-#define IS_RX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->activity.mask_rx)))
-#define IS_TX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->activity.mask_tx & (1 << (idx)))))
-#define IS_RX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->activity.mask_rx & (1 << (idx)))))
-#define SET_TX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->activity.mask_tx |=  (1 << (idx)); }while(0)
-#define SET_RX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->activity.mask_rx |=  (1 << (idx)); }while(0)
-#define SET_TX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->activity.mask_tx &=  (~(1 << (idx))); }while(0)
-#define SET_RX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->activity.mask_rx &=  (~(1 << (idx))); }while(0)
-#define GET_IDX( client_ptr, buffer_addr )  ((AppTraceUnit_t*)(buffer_addr) - (AppTraceUnit_t*)(&((client_ptr)->activity.data[0])));
+#define IS_ALL_FULL( client_ptr)            ((u8)(BUSY==(((client_ptr)->buffer.mask_tx)&((client_ptr)->buffer.mask_rx))))
+#define IS_TX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->buffer.mask_tx)))
+#define IS_RX_FULL( client_ptr)             ((u8)(BUSY==((client_ptr)->buffer.mask_rx)))
+#define IS_TX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->buffer.mask_tx & (1 << (idx)))))
+#define IS_RX_FULL_AT( client_ptr, idx)     ((u8)(BUSY==((client_ptr)->buffer.mask_rx & (1 << (idx)))))
+#define SET_TX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->buffer.mask_tx |=  (1 << (idx)); }while(0)
+#define SET_RX_EMPTY_AT( client_ptr, idx)   do{ (client_ptr)->buffer.mask_rx |=  (1 << (idx)); }while(0)
+#define SET_TX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->buffer.mask_tx &=  (~(1 << (idx))); }while(0)
+#define SET_RX_FULL_AT( client_ptr, idx)    do{ (client_ptr)->buffer.mask_rx &=  (~(1 << (idx))); }while(0)
+#define GET_IDX( client_ptr, buffer_addr )  ((AppTraceUnit_t*)(buffer_addr) - (AppTraceUnit_t*)(&((client_ptr)->buffer.slot[0])));
 
 /* Private function prototypes -----------------------------------------------*/
 static u8   util__get_buffer_usage( void);
@@ -72,7 +72,7 @@ static int exit_function( int);
  * @return      Return buffer usage <=32
 */
 static u8 util__get_buffer_usage( void){
-    u32 value = self->activity.mask_tx & self->activity.mask_rx;
+    u32 value = self->buffer.mask_tx & self->buffer.mask_rx;
     value = ( value & 0x55555555 ) + ( (value >>1)  & 0x55555555 );
     value = ( value & 0x33333333 ) + ( (value >>2)  & 0x33333333 );
     value = ( value & 0x0f0f0f0f ) + ( (value >>4)  & 0x0f0f0f0f );
@@ -128,14 +128,14 @@ static u32  util__get_next_available( size_t required_length){
     u32 idx = UINT32_MAX;
 
     /* In order to save memory, find from the end node of linked list first to see if possible to append */
-    if( self->activity.anchor.pHead!=NULL && (void*)(self->activity.anchor.pEnd)!=(void*)(&self->activity.anchor) && PER_BUFFER_SIZE!=self->activity.anchor.pEnd->len){
+    if( self->buffer.anchor.pHead!=NULL && (void*)(self->buffer.anchor.pEnd)!=(void*)(&self->buffer.anchor) && PER_BUFFER_SIZE!=self->buffer.anchor.pEnd->len){
 
         /* If linked list is NOT empty and end node is NOT full, that's being said still we have some available memory can be appended to the end node, no need to assign a new buffer slot */
 
-        idx    = GET_IDX( self, self->activity.anchor.pEnd);
+        idx    = GET_IDX( self, self->buffer.anchor.pEnd);
 
         /* However the length is NOT fit, needs to further split */
-        // if( PER_BUFFER_SIZE-self->activity.anchor.pEnd->len < length ){
+        // if( PER_BUFFER_SIZE-self->buffer.anchor.pEnd->len < length ){
         //     ret = 2;
         // }
         
@@ -143,7 +143,7 @@ static u32  util__get_next_available( size_t required_length){
 
         /* Otherwise, new buffer slot needs to be assigned */
 
-        u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+        u32 mask_all = (self->buffer.mask_rx & self->buffer.mask_tx);
 
         
         idx = 0;
@@ -211,26 +211,26 @@ static void task_func__tx( void* ptr){
             taskENTER_CRITICAL();
         }
         
-        while( self->activity.anchor.pHead!=NULL ){
-            u32 idx = (self->activity.anchor.pHead - &self->activity.data[0]);
+        while( self->buffer.anchor.pHead!=NULL ){
+            u32 idx = (self->buffer.anchor.pHead - &self->buffer.slot[0]);
             rh_cmn__assert( IS_TX_FULL_AT( self, idx)==true, "Empty buffer exists in linked list.");
                 
             /* Request access to shared resource */
             if( xSemaphoreTake( self->lock_handle, portMAX_DELAY)==pdTRUE){
                 /* Send data non-blockly */
-                rh_cmn_usart__send_dma( self->activity.anchor.pHead->addr, self->activity.anchor.pHead->len, NULL);
+                rh_cmn_usart__send_dma( self->buffer.anchor.pHead->addr, self->buffer.anchor.pHead->len, NULL);
 
-                if( self->activity.anchor.pHead->pNext==NULL ){
+                if( self->buffer.anchor.pHead->pNext==NULL ){
                     /* Reached the end of linked list */
-                    self->activity.anchor.pEnd = (AppTraceUnit_t*)&self->activity.anchor;
+                    self->buffer.anchor.pEnd = (AppTraceUnit_t*)&self->buffer.anchor;
                 }
                 /* Remove this node from linked list */
-                self->activity.anchor.pHead = self->activity.anchor.pHead->pNext;
+                self->buffer.anchor.pHead = self->buffer.anchor.pHead->pNext;
 
                 /* Reset this node */
-                self->activity.data[idx].len   = 0;
-                self->activity.data[idx].pNext = NULL;
-                self->activity.data[idx].pPrev = NULL;
+                self->buffer.slot[idx].len   = 0;
+                self->buffer.slot[idx].pNext = NULL;
+                self->buffer.slot[idx].pPrev = NULL;
 
                 /* Set to empty */
                 SET_TX_EMPTY_AT( self, idx);
@@ -271,21 +271,21 @@ static inline void push_back_node( u32 idx){
     rh_cmn__assert( idx<32, "Buffer index can NOT greater than 32" );
 
 
-    self->activity.data[idx].pNext    = NULL;
-    if( self->activity.anchor.pHead!=NULL ){
+    self->buffer.slot[idx].pNext    = NULL;
+    if( self->buffer.anchor.pHead!=NULL ){
         /* Link list is NOT empty */
-        rh_cmn__assert( ((void*)self->activity.anchor.pEnd!=(void*)(&self->activity.anchor)), "Anchor off hook. Head & end node don't match.");
-        self->activity.anchor.pEnd->pNext = &self->activity.data[idx];
-        self->activity.data[idx].pPrev    = self->activity.anchor.pEnd;
+        rh_cmn__assert( ((void*)self->buffer.anchor.pEnd!=(void*)(&self->buffer.anchor)), "Anchor off hook. Head & end node don't match.");
+        self->buffer.anchor.pEnd->pNext = &self->buffer.slot[idx];
+        self->buffer.slot[idx].pPrev    = self->buffer.anchor.pEnd;
     }else{
         /* Link list is empty */
-        rh_cmn__assert( (void*)(self->activity.anchor.pEnd)==(void*)(&self->activity.anchor), "Anchor off hook. Head & end node don't match.");
-        self->activity.anchor.pHead       = &self->activity.data[idx];
-        self->activity.data[idx].pPrev    = (AppTraceUnit_t*)&self->activity.anchor;
+        rh_cmn__assert( (void*)(self->buffer.anchor.pEnd)==(void*)(&self->buffer.anchor), "Anchor off hook. Head & end node don't match.");
+        self->buffer.anchor.pHead       = &self->buffer.slot[idx];
+        self->buffer.slot[idx].pPrev    = (AppTraceUnit_t*)&self->buffer.anchor;
     }
 
     /* Terminal node move to this */
-    self->activity.anchor.pEnd = &self->activity.data[idx];
+    self->buffer.anchor.pEnd = &self->buffer.slot[idx];
 }
 
 static inline void pop_front_node( u32 idx){
@@ -340,7 +340,7 @@ static u32 message( const char *fmt, ...){
     u32     len    = 1+vsnprintf( NULL, 0, fmt, args1); /* Required length for formatted string, including the terminal symbol '\0' */
     va_end( args1);
 
-    rh_cmn__assert( (0xFFFFFFFF==(self->activity.mask_tx | self->activity.mask_rx)), "TX RX buffer should NOT be overlapped" );
+    rh_cmn__assert( (0xFFFFFFFF==(self->buffer.mask_tx | self->buffer.mask_rx)), "TX RX buffer should NOT be overlapped" );
     
     /* Request access to shared resource */
     if( xSemaphoreTake( self->lock_handle, 50) ){
@@ -359,37 +359,37 @@ static u32 message( const char *fmt, ...){
             */
             if( false==IS_TX_FULL_AT( self, idx) ){
                 /* An idle buffer was designated by `util__get_next_available()` */
-                rh_cmn__assert( self->activity.data[idx].len==0, "Idle buffer should have a length fo 0.");
+                rh_cmn__assert( self->buffer.slot[idx].len==0, "Idle buffer should have a length fo 0.");
                 SET_TX_FULL_AT( self, idx);
                 /* Append to the end */
                 push_back_node(idx);
             }
 
-            if( self->activity.data[idx].len+len>PER_BUFFER_SIZE ){
+            if( self->buffer.slot[idx].len+len>PER_BUFFER_SIZE ){
                 /* Save temporarily & Copy piece by piece */
-                size_t offset       = self->activity.data[idx].len;
+                size_t offset       = self->buffer.slot[idx].len;
                 size_t extra_len    = len;
                 u8 *   extra_buffer = alloca(extra_len);
                 vsnprintf( extra_buffer, extra_len, fmt, args2);
 
                 size_t extra_idx = 0;
-                memcpy( &(self->activity.data[idx].addr[offset]), &extra_buffer[extra_idx], PER_BUFFER_SIZE-offset );
+                memcpy( &(self->buffer.slot[idx].addr[offset]), &extra_buffer[extra_idx], PER_BUFFER_SIZE-offset );
                 extra_idx                    += (PER_BUFFER_SIZE-offset);
-                self->activity.data[idx].len += (PER_BUFFER_SIZE-offset);
+                self->buffer.slot[idx].len += (PER_BUFFER_SIZE-offset);
                 extra_len                    -= (PER_BUFFER_SIZE-offset);
 
                 idx    = 0;
                 while( extra_len!=0 ){
-                    u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+                    u32 mask_all = (self->buffer.mask_rx & self->buffer.mask_tx);
                     while( BUSY==(mask_all&(1<<(idx))) && idx<32 ){
                         ++(idx);
                     }
                     if( idx<32 ){
                         SET_TX_FULL_AT( self, idx);
                         push_back_node(idx);
-                        memcpy( &(self->activity.data[idx].addr[0]), &extra_buffer[extra_idx], RH_MIN(PER_BUFFER_SIZE, extra_len) );
+                        memcpy( &(self->buffer.slot[idx].addr[0]), &extra_buffer[extra_idx], RH_MIN(PER_BUFFER_SIZE, extra_len) );
                         extra_idx                    += RH_MIN(PER_BUFFER_SIZE, extra_len);
-                        self->activity.data[idx].len += RH_MIN(PER_BUFFER_SIZE, extra_len);
+                        self->buffer.slot[idx].len += RH_MIN(PER_BUFFER_SIZE, extra_len);
                         extra_len                    -= RH_MIN(PER_BUFFER_SIZE, extra_len);
                     }else{
                         rh_cmn__assert( idx==32, "Expected idx==32");
@@ -405,8 +405,8 @@ static u32 message( const char *fmt, ...){
                 /**
                  * @note The snprintf() and vsnprintf() functions will write at most size-1 of the characters printed into the output string (the size'th character then gets the terminating ‘\0’); if the return value is greater than or equal to the size argument, the string was too short and some of the printed characters were discarded.  The output is always null-terminated, unless size is 0.
                 */
-                vsnprintf( &(self->activity.data[idx].addr[self->activity.data[idx].len]), PER_BUFFER_SIZE-self->activity.data[idx].len, fmt, args2);
-                self->activity.data[idx].len += len;
+                vsnprintf( &(self->buffer.slot[idx].addr[self->buffer.slot[idx].len]), PER_BUFFER_SIZE-self->buffer.slot[idx].len, fmt, args2);
+                self->buffer.slot[idx].len += len;
             }
         }
 
@@ -470,12 +470,12 @@ static int main_function( int argc, const char*argv[]){
 AppTrace_t g_AppTrace = {
     .task_tx     = NULL,
     .task_rx     = NULL,
-    .activity    = {    
+    .buffer      = {    
         .mask_rx=0xFFFFFFFF, 
         .mask_tx=0xFFFFFFFF, 
         .anchor={
             .pHead=NULL, 
-            .pEnd=(AppTraceUnit_t*)(&self->activity.anchor)
+            .pEnd=(AppTraceUnit_t*)(&self->buffer.anchor)
         }
     },
     .launch      = launch,

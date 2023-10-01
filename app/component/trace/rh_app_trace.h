@@ -76,9 +76,9 @@ typedef struct AppTrace{
     struct{
         u32                     mask_rx;   /*!< 0=Busy; 1=Idle */
         u32                     mask_tx;   /*!< 0=Busy; 1=Idle */
-        AppTraceUnit_t          data[32];  /*!< Entire Buffer */
+        AppTraceUnit_t          slot[32];  /*!< Entire Buffer */
         AppTraceUnitAnchor_t    anchor;    /*!< Link list dummy head & end node */
-    }activity;
+    }buffer;
 
     SemaphoreHandle_t lock_handle;
     StaticSemaphore_t lock_buffer;
@@ -98,7 +98,7 @@ typedef struct AppTrace{
     int (*main)( int argc, const char*argv[]);
     u32 (*message)( const char *fmt, ...);
 
-    int (*exit)(void);
+    int (*exit)(int);
 
 }AppTrace_t;
 
