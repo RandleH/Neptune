@@ -48,9 +48,9 @@
 #define GET_IDX( client_ptr, buffer_addr )  ((AppTraceUnit_t*)(buffer_addr) - (AppTraceUnit_t*)(&((client_ptr)->activity.data[0])));
 
 /* Private function prototypes -----------------------------------------------*/
-static u8 get_buffer_usage( void);
-static void adjust_priority_task_tx( void);
-static u32  find_next_available( size_t length, size_t *offset, u32 *idx);
+static u8   util__get_buffer_usage( void);
+static void util__adjust_priority_task_tx( void);
+static u32  util__get_next_available( size_t required_length);
 
 static void task_func__tx( void* ptr);
 static void task_func__rx( void* ptr);
@@ -71,7 +71,7 @@ static int exit_function( int);
  *              Assertion may oaccurs when return value larger than 32.
  * @return      Return buffer usage <=32
 */
-static u8 get_buffer_usage( void){
+static u8 util__get_buffer_usage( void){
     u32 value = self->activity.mask_tx & self->activity.mask_rx;
     value = ( value & 0x55555555 ) + ( (value >>1)  & 0x55555555 );
     value = ( value & 0x33333333 ) + ( (value >>2)  & 0x33333333 );
@@ -91,8 +91,8 @@ static u8 get_buffer_usage( void){
  *              Otherwise, reset priority to `kAppConst__TRACE_PRIORITY`
  * @return      (none)
 */
-static void adjust_priority_task_tx( void){
-    u8 usage = get_buffer_usage();
+static void util__adjust_priority_task_tx( void){
+    u8 usage = util__get_buffer_usage();
     if( usage>30 ){
         /* Immediately clear buffer */
         self->force_to_clear = true;
@@ -118,27 +118,26 @@ static void adjust_priority_task_tx( void){
  *              Return 1 if literally no buffer available. No matter how to assign, always overflowed.
  *              Return 2 if buffer needs to split in order to fit.
 */
-static u32 find_next_available( size_t length, size_t *offset, u32 *idx){
-    rh_cmn__assert( offset!=NULL && idx!=NULL, "Can NOT return results since given NULL pointers.");
+static u32  util__get_next_available( size_t required_length){
     
     if( IS_ALL_FULL(self) ){
-        return 1;
+        return UINT32_MAX;
     }
 
-    u32 ret = RET_OK;
+
+    u32 idx = UINT32_MAX;
 
     /* In order to save memory, find from the end node of linked list first to see if possible to append */
     if( self->activity.anchor.pHead!=NULL && (void*)(self->activity.anchor.pEnd)!=(void*)(&self->activity.anchor) && PER_BUFFER_SIZE!=self->activity.anchor.pEnd->len){
 
         /* If linked list is NOT empty and end node is NOT full, that's being said still we have some available memory can be appended to the end node, no need to assign a new buffer slot */
 
-        *offset = self->activity.anchor.pEnd->len;
-        *idx    = GET_IDX( self, self->activity.anchor.pEnd);
+        idx    = GET_IDX( self, self->activity.anchor.pEnd);
 
         /* However the length is NOT fit, needs to further split */
-        if( PER_BUFFER_SIZE-self->activity.anchor.pEnd->len < length ){
-            ret = 2;
-        }
+        // if( PER_BUFFER_SIZE-self->activity.anchor.pEnd->len < length ){
+        //     ret = 2;
+        // }
         
     }else{
 
@@ -146,21 +145,21 @@ static u32 find_next_available( size_t length, size_t *offset, u32 *idx){
 
         u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
 
-        *offset = 0;
-        *idx = 0;
-        while( BUSY==(mask_all&(1<<(*idx))) ){
-            ++(*idx);
+        
+        idx = 0;
+        while( BUSY==(mask_all&(1<<idx)) ){
+            ++idx;
         }
         
         /* However the length is NOT fit, needs to further split */
-        if( length > PER_BUFFER_SIZE ){
-            ret = 2;
+        if( idx==32 ){
+            idx = UINT32_MAX;
         }
-        #warning "TODO: Optimization - Merge two conditions"
+    
     }
 
     
-    return ret;
+    return idx;
 }
 
 #if RH_APP_CFG__DEBUG
@@ -179,12 +178,12 @@ static void task_func_report( void* param){
 #endif /* RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK */
 
         ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-        self->message( "App Trace Self Report -----------------------------\n"\
-                       "Buffer Usage: %d/32\n"\
-                       "TX Priority: %d\n"\
-                       "RX Priority: %d\n"\
-                       "Highest Stack Watermark: %d\n",\
-                       get_buffer_usage(),\
+        self->message( "App Trace Self Report -----------------------------\r\n"\
+                       "Buffer Usage: %d/32\r\n"\
+                       "TX Priority: %d\r\n"\
+                       "RX Priority: %d\r\n"\
+                       "Highest Stack Watermark: %d\r\n",\
+                       util__get_buffer_usage(),\
                        uxTaskPriorityGet(self->task_tx),\
                        uxTaskPriorityGet(self->task_rx),\
                        water_mark);
@@ -215,11 +214,12 @@ static void task_func__tx( void* ptr){
         while( self->activity.anchor.pHead!=NULL ){
             u32 idx = (self->activity.anchor.pHead - &self->activity.data[0]);
             rh_cmn__assert( IS_TX_FULL_AT( self, idx)==true, "Empty buffer exists in linked list.");
-
-            rh_cmn_usart__send_dma( self->activity.anchor.pHead->addr, self->activity.anchor.pHead->len, NULL);
                 
             /* Request access to shared resource */
             if( xSemaphoreTake( self->lock_handle, portMAX_DELAY)==pdTRUE){
+                /* Send data non-blockly */
+                rh_cmn_usart__send_dma( self->activity.anchor.pHead->addr, self->activity.anchor.pHead->len, NULL);
+
                 if( self->activity.anchor.pHead->pNext==NULL ){
                     /* Reached the end of linked list */
                     self->activity.anchor.pEnd = (AppTraceUnit_t*)&self->activity.anchor;
@@ -249,7 +249,7 @@ static void task_func__tx( void* ptr){
             #warning "Should only affect `self->message()`, not to suspend all process"
         }
         
-        adjust_priority_task_tx();
+        util__adjust_priority_task_tx();
 
     }
 }
@@ -336,7 +336,6 @@ static u32 message( const char *fmt, ...){
 
     u32     ret    = RET_OK;        /* Value about to return */
     u32     idx    = 0;    /* Idx for available buffer */
-    size_t  offset = 0;
     va_list args1, args2; va_start( args1, fmt); va_copy( args2, args1);
     u32     len    = 1+vsnprintf( NULL, 0, fmt, args1); /* Required length for formatted string, including the terminal symbol '\0' */
     va_end( args1);
@@ -344,98 +343,71 @@ static u32 message( const char *fmt, ...){
     rh_cmn__assert( (0xFFFFFFFF==(self->activity.mask_tx | self->activity.mask_rx)), "TX RX buffer should NOT be overlapped" );
     
     /* Request access to shared resource */
-    if( xSemaphoreTake( self->lock_handle, ((TickType_t)kAppConst__TRACE_MAX_WAIT_TICK)==pdTRUE) ){
+    if( xSemaphoreTake( self->lock_handle, 50) ){
         /* Find an available buffer */
 
-        switch(find_next_available( len, &offset, &idx)){
-            case RET_OK:{ /* Found - Found a buffer that fits the string */
-                /* Found it, then validate the results */
-                rh_cmn__assert( idx<32U, "Impossible, slot index is greater than 32 when buffer is NOT full.");
-                rh_cmn__assert( self->activity.data[idx].len+len<=PER_BUFFER_SIZE, "Expected buffer NOT overflowed.");
-                /**
-                 * @note The combination of `idx` and `offset` can determine where memory can be written to. Here is the usage example.
-                 * 
-                 * @example: new_available_location = self->activity.data[idx].addr + offset
-                 * 
-                 * @note For memory saving purpose, `find_next_available() may or may NOT provide a buffer location`that was completely empty (marked as idle). Linked list add on only occurs when new empty buffer was designated. Therefore we need to further check the result from `find_next_available()`
-                */
-                if( false==IS_TX_FULL_AT( self, idx) ){
-                    /* An idle buffer was designated by `find_next_available()` */
-                    rh_cmn__assert( self->activity.data[idx].len==0, "Idle buffer should have a length fo 0.");
-                    SET_TX_FULL_AT( self, idx);
-                    /* Append to the end */
-                    push_back_node(idx);
+        idx = util__get_next_available(len);
+
+        if( idx==UINT32_MAX ){
+            /* No available buffer */
+            ret = 1;
+        }else{
+            rh_cmn__assert( idx<32, "Index can NOT exceed 32.");
+
+            /**
+             * @note For memory saving purpose, `util__get_next_available() may or may NOT provide a buffer location`that was completely empty (marked as idle). Linked list add on only occurs when new empty buffer was designated. Therefore we need to further check the result from `util__get_next_available()`
+            */
+            if( false==IS_TX_FULL_AT( self, idx) ){
+                /* An idle buffer was designated by `util__get_next_available()` */
+                rh_cmn__assert( self->activity.data[idx].len==0, "Idle buffer should have a length fo 0.");
+                SET_TX_FULL_AT( self, idx);
+                /* Append to the end */
+                push_back_node(idx);
+            }
+
+            if( self->activity.data[idx].len+len>PER_BUFFER_SIZE ){
+                /* Save temporarily & Copy piece by piece */
+                size_t offset       = self->activity.data[idx].len;
+                size_t extra_len    = len;
+                u8 *   extra_buffer = alloca(extra_len);
+                vsnprintf( extra_buffer, extra_len, fmt, args2);
+
+                size_t extra_idx = 0;
+                memcpy( &(self->activity.data[idx].addr[offset]), &extra_buffer[extra_idx], PER_BUFFER_SIZE-offset );
+                extra_idx                    += (PER_BUFFER_SIZE-offset);
+                self->activity.data[idx].len += (PER_BUFFER_SIZE-offset);
+                extra_len                    -= (PER_BUFFER_SIZE-offset);
+
+                idx    = 0;
+                while( extra_len!=0 ){
+                    u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
+                    while( BUSY==(mask_all&(1<<(idx))) && idx<32 ){
+                        ++(idx);
+                    }
+                    if( idx<32 ){
+                        SET_TX_FULL_AT( self, idx);
+                        push_back_node(idx);
+                        memcpy( &(self->activity.data[idx].addr[0]), &extra_buffer[extra_idx], RH_MIN(PER_BUFFER_SIZE, extra_len) );
+                        extra_idx                    += RH_MIN(PER_BUFFER_SIZE, extra_len);
+                        self->activity.data[idx].len += RH_MIN(PER_BUFFER_SIZE, extra_len);
+                        extra_len                    -= RH_MIN(PER_BUFFER_SIZE, extra_len);
+                    }else{
+                        rh_cmn__assert( idx==32, "Expected idx==32");
+                        break;
+                    }
                 }
+
+                if( idx==32 && extra_len!=0 ){
+                    #warning "TODO"
+                }
+            }else{
+                /* Write to buffer directly */
                 /**
                  * @note The snprintf() and vsnprintf() functions will write at most size-1 of the characters printed into the output string (the size'th character then gets the terminating ‘\0’); if the return value is greater than or equal to the size argument, the string was too short and some of the printed characters were discarded.  The output is always null-terminated, unless size is 0.
                 */
-                vsnprintf( &(self->activity.data[idx].addr[offset]), PER_BUFFER_SIZE-offset, fmt, args2);
+                vsnprintf( &(self->activity.data[idx].addr[self->activity.data[idx].len]), PER_BUFFER_SIZE-self->activity.data[idx].len, fmt, args2);
                 self->activity.data[idx].len += len;
-                break;/* End of case RET_OK */
             }
-            case 1:{ /* No available buffer */
-                ret = 1;
-                break;
-            }
-
-            case 2:{ /* Buffer Split - Buffer needs to split in order to fit. Try to avoid this case, extra time & memory cost */
-                size_t extra_len = len;
-                u8 *extra_buffer = alloca(extra_len);
-                if( extra_buffer==NULL ){
-                    #warning "TODO"
-                }else{
-                    u32 mask_all = (self->activity.mask_rx & self->activity.mask_tx);
-                    
-
-                    if( false==IS_TX_FULL_AT( self, idx) ){
-                        rh_cmn__assert( offset==0, "Expected offset==0");
-                        /* An idle buffer was designated by `find_next_available()` */
-                        SET_TX_FULL_AT( self, idx);
-                        /* Append to the end */
-                        push_back_node(idx);
-                    }
-
-                    /* Save the string temporary */
-                    vsnprintf( extra_buffer, extra_len, fmt, args2);
-
-                    /* Split the extra buffer piece by piece */
-                    size_t extra_idx = 0;
-                    memcpy( &(self->activity.data[idx].addr[offset]), &extra_buffer[extra_idx], PER_BUFFER_SIZE-offset );
-                    extra_idx                    += (PER_BUFFER_SIZE-offset);
-                    self->activity.data[idx].len += (PER_BUFFER_SIZE-offset);
-                    extra_len                    -= (PER_BUFFER_SIZE-offset);
-
-                    idx    = 0;
-                    while( extra_len!=0 ){
-                        while( BUSY==(mask_all&(1<<(idx))) && idx<32 ){
-                            ++(idx);
-                        }
-                        if( idx<32 ){
-                            SET_TX_FULL_AT( self, idx);
-                            push_back_node(idx);
-                            memcpy( &(self->activity.data[idx].addr[0]), &extra_buffer[extra_idx], RH_MIN(PER_BUFFER_SIZE, extra_len) );
-                            extra_idx                    += RH_MIN(PER_BUFFER_SIZE, extra_len);
-                            self->activity.data[idx].len += RH_MIN(PER_BUFFER_SIZE, extra_len);
-                            extra_len                    -= RH_MIN(PER_BUFFER_SIZE, extra_len);
-                        }else{
-                            rh_cmn__assert( idx==32, "Expected idx==32");
-                            break;
-                        }
-                    }
-
-                    if( idx==32 && extra_len!=0 ){
-                        #warning "TODO"
-                    }
-                }
-                
-                break;  /* End of case Buffer Split */
-            }
-
-            default:{
-                #warning "TODO"
-                break;
-            }
-                
         }
 
         va_end(args2);
@@ -452,7 +424,7 @@ static u32 message( const char *fmt, ...){
         xTaskNotifyGive( self->task_tx);
 
         /* Adjust priority when necessary */
-        adjust_priority_task_tx();
+        util__adjust_priority_task_tx();
     }
     
     return ret;
@@ -479,12 +451,12 @@ static int exit_function( int status){
 */
 static int main_function( int argc, const char*argv[]){
     
-    g_AppTrace.message( "App Trace Self Report -----------------------------\n"\
-                        "Buffer Usage: %d/32\n"\
-                        "TX Priority: %d\n"\
-                        "RX Priority: %d\n"\
-                        "Highest Stack Watermark: %d\n",\
-                       get_buffer_usage(),\
+    g_AppTrace.message( "App Trace Self Report -----------------------------\r\r\n"\
+                        "Buffer Usage: %d/32\r\n"\
+                        "TX Priority: %d\r\n"\
+                        "RX Priority: %d\r\n"\
+                        "Highest Stack Watermark: %d\r\n",\
+                       util__get_buffer_usage(),\
                        uxTaskPriorityGet(self->task_tx),\
                        uxTaskPriorityGet(self->task_rx),\
                        self->stack_water_mark);
