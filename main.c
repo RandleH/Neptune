@@ -24,6 +24,7 @@
 #include "rh_cmn.h"
 #include "rh_app.h"
 
+
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_rcc.h"
 
@@ -156,7 +157,10 @@ void task_print_cpu_info( void* param){
         g_AppTrace.message( "CPU Info: AHB Clock Frequency: %ld Hz\r\n", HAL_RCC_GetHCLKFreq());
         g_AppTrace.message( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
         g_AppTrace.message( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
-        
+
+        CmnChipUID_t uid;
+        rh_cmn_chip__uid( &uid);
+        g_AppTrace.message( "Device Serial Number: %02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d\r\n", uid.raw[0],uid.raw[1],uid.raw[2],uid.raw[3],uid.raw[4],uid.raw[5],uid.raw[6],uid.raw[7],uid.raw[8],uid.raw[9],uid.raw[10],uid.raw[11]);
 
         vTaskDelay(10000);
     }
