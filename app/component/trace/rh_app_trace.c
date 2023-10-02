@@ -64,7 +64,7 @@ enum SlotStatus {
     kSlotStatusGood      = 0,       /* Perfect slot. Data can completely fit in */
     kSlotStatusCompact   = 1,       /* Data partially fit in. Another slot memory needed which may not always be available */
     kSlotStatusInvalid   = 2,       /* Invalid slot. Do NOT use */
-    lSlotStatusPartial   = 3        /* Data ONLY can be partially sent */
+    kSlotStatusPartial   = 3        /* Data ONLY can be partially sent */
 };
 
 /**
@@ -208,9 +208,14 @@ static void util__get_next_available( size_t required_length, SlotInfo_t *return
                     return_result->idx    = GET_IDX( self, self->buffer.anchor.pEnd);
                 }
             }else{
-                /* Always overflow. Length is too long */
-                return_result->status = kSlotStatusInvalid;
-                return_result->idx    = INVALID_SLOT_IDX;
+                /* Always overflow. Length is too long. Try partially fits */
+                if( self->buffer.anchor.pEnd->len==PER_BUFFER_SIZE){
+                    return_result->status = kSlotStatusInvalid;
+                    return_result->idx    = INVALID_SLOT_IDX;
+                }else{
+                    return_result->status = kSlotStatusPartial;
+                    return_result->idx    = GET_IDX( self, self->buffer.anchor.pEnd);;
+                }
             }
         }
     }else{
@@ -226,8 +231,8 @@ static void util__get_next_available( size_t required_length, SlotInfo_t *return
                 return_result->idx    = 0;
             }else{
                 /* Entire buffer (all slots) assigned, still not able to fit. Message is way too long */
-                return_result->status = kSlotStatusInvalid;
-                return_result->idx    = INVALID_SLOT_IDX;
+                return_result->status = kSlotStatusPartial;
+                return_result->idx    = 0;
             }
         }
     }
@@ -442,6 +447,7 @@ static u32 message( const char *fmt, ...){
                 self->buffer.slot[slot.idx].len += len;
                 break;
             }
+            case kSlotStatusPartial:
             case kSlotStatusCompact:{
                 /* Save temporarily & Copy piece by piece */
                 u8 *   extra_buffer = NULL;
@@ -457,6 +463,10 @@ static u32 message( const char *fmt, ...){
                  * @attention   If the return value is close to zero then the task has come close to overflowing its stack.
                 */
                 /* Check if stack will be overflowed */
+                if( slot.status==kSlotStatusPartial ){
+                    /* Required length is too long. Use the remaining buffer in bytes instead */
+                    len = util__get_buffer_remaining_byte();
+                }
                 u32 remaining_stack_in_bytes = uxTaskGetStackHighWaterMark(NULL)<<2;
                 if( remaining_stack_in_bytes>=len ){
                     use_heap     = false;
@@ -466,10 +476,12 @@ static u32 message( const char *fmt, ...){
                     use_heap     = true;
                     extra_buffer = pvPortMalloc(len);
                     extra_len    = len;
-                    if( NULL==extra_buffer ){
-                        ret = 3; /* Failed */
-                        break;
-                    }
+                }
+
+                /* Rare condition that both heap & stack is not long enough to store this string */
+                if( NULL==extra_buffer ){
+                    ret = 3; /* Failed */
+                    break;
                 }
 
                 /* Preparation before copy. Clean stash */
@@ -499,6 +511,11 @@ static u32 message( const char *fmt, ...){
 
                 if( use_heap==true ){
                     vPortFree(extra_buffer);
+                }
+
+                if( slot.status==kSlotStatusPartial ){
+                    rh_cmn__assert( self->buffer.anchor.pEnd->len==PER_BUFFER_SIZE, "Whole buffer should be full.");
+                    rh_cmn__assert( IS_ALL_FULL(self)==true                       , "Whole buffer should be full.");
                 }
                 break;
             }
@@ -568,6 +585,19 @@ static int main_function( int argc, const char*argv[]){
 }
 
 
+
+#if RH_APP_CFG__DEBUG
+/**
+ * @brief       App Trace - CI test program
+ * @var     
+ * @return      
+*/
+u32 rh_app_trace__ci( int(*print_func)(const char*,...), int var){
+    // memset( self, 0, sizeof())
+    return false;
+}
+
+#endif
 
 /* Exported variable ---------------------------------------------------------*/
 AppTrace_t g_AppTrace = {

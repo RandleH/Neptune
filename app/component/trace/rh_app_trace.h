@@ -102,6 +102,15 @@ typedef struct AppTrace{
 
 
 
+#if RH_APP_CFG__DEBUG
+/**
+ * @brief       App Trace - CI test program
+ * @var     
+ * @return      
+*/
+u32 rh_app_trace__ci( int(*print_func)(const char*,...), int var);
+#endif
+
 /* Exported variable ---------------------------------------------------------*/
 extern AppTrace_t g_AppTrace;
 
