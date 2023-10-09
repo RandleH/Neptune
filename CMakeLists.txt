@@ -90,6 +90,7 @@ aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/gui     source_app_gui)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/util    source_app_util)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/time    source_app_time)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/trace   source_app_trace)
+aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/trace/ci   source_app_trace_ci)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/bsp     source_bsp)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/cmn     source_cmn)
 aux_source_directory( ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src  source_stm32hal)
@@ -106,6 +107,7 @@ add_executable( ${PROJECT_NAME}.elf                     ${CMAKE_SOURCE_DIR}/main
                                                         ${source_app_util}
                                                         ${source_app_time}
                                                         ${source_app_trace}
+                                                        ${source_app_trace_ci}
                                                         ${source_cmn}
                                                         ${source_bsp}
                                                         ${source_stm32hal})
