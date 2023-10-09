@@ -70,8 +70,6 @@ typedef struct AppTrace{
     TaskHandle_t    task_tx;
     TaskHandle_t    task_rx;
 
-    StackType_t     stack[kAppConst__TRACE_STATIC_STACK_SIZE];
-
     struct{
         u32                     mask_rx;   /*!< 0=Busy; 1=Idle */
         u32                     mask_tx;   /*!< 0=Busy; 1=Idle */
@@ -94,27 +92,21 @@ typedef struct AppTrace{
     /* Public ------------------------------------------------------------*/
     u32 (*launch)( void);
     int (*main)( int argc, const char*argv[]);
-    u32 (*message)( const char *fmt, ...);
-
+    int (*printf)( const char *fmt, ...);
+    int (*purge)(void);
     int (*exit)(int);
 
 }AppTrace_t;
 
 
-
-#if RH_APP_CFG__DEBUG
-/**
- * @brief       App Trace - CI test program
- * @var     
- * @return      
-*/
-u32 rh_app_trace__ci( int(*print_func)(const char*,...), int var);
-#endif
-
 /* Exported variable ---------------------------------------------------------*/
 extern AppTrace_t g_AppTrace;
 
-
+/**
+ * @note    Must enable `RH_APP_CFG__ENABLE_CI` to call this function
+ * @return  Return 0 if passed
+*/
+extern int rh_app_trace__ci_sanity( void);
 
 
 #endif

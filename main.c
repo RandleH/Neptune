@@ -17,13 +17,15 @@
   ******************************************************************************
   */
 
+
+/* Includes ------------------------------------------------------------------*/
 #include <stdlib.h>
+#include <wchar.h>
+#include <string.h>
 
 #include "rh_bsp.h"
-
 #include "rh_cmn.h"
 #include "rh_app.h"
-
 
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_rcc.h"
@@ -37,6 +39,7 @@ extern u32 SystemCoreClock;
 
 
 
+/* Exported functions --------------------------------------------------------*/
 
 /* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an
 implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
@@ -101,7 +104,10 @@ void vApplicationMallocFailedHook( void ){
 
 
 
-
+/**
+ * @brief   LED Blink Task
+ * @param    param cast to `AppLed_t *` aka. `struct AppLed *`
+*/
 void task_blink( void* param){
     static u8 cnt = 10;
     bool flag = true;
@@ -109,12 +115,12 @@ void task_blink( void* param){
         vTaskDelay(400);
         
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        g_AppTrace.message( "LED: Turn on\r\n");
+        g_AppTrace.printf( "LED: Turn on\r\n");
         
         vTaskDelay(400);
         
         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        g_AppTrace.message( "LED: Turn off\r\n");
+        g_AppTrace.printf( "LED: Turn off\r\n");
     
         if( cnt==0){
             if(flag==true){
@@ -128,109 +134,57 @@ void task_blink( void* param){
 }
 
 
-#include <wchar.h>
-
-u16 g_Gram[30*30] = {0};
-
-void task_switch_color( void *param){
-    const u16 color[] = { 0xF800, 0x07E0, 0x001F};
-    u8 idx = 0;
-    while(1){
-        rh_cmn_memset16( g_Gram, color[idx%3], 30*30);
-        switch(idx%3){
-            case 0: g_AppTrace.message( "Screen: Switching color to red\r\n"); break;
-            case 1: g_AppTrace.message( "Screen: Switching color to green\r\n"); break;
-            case 2: g_AppTrace.message( "Screen: Switching color to blue\r\n"); break;
-            default: break;
-        }
-        rh_bsp_screen__flush( g_Gram, 200, 100, 230-1, 130-1);
-        ++idx;
-        vTaskDelay(700);
-    }
-}
 
 
-void task_print_cpu_info( void* param){
-    while(1){
-        g_AppTrace.message( "CPU Info Report ------------------------------------------------\r\n");
-        g_AppTrace.message( "CPU Info: System Core Frequency: %ld Hz\r\n", HAL_RCC_GetSysClockFreq());
-        g_AppTrace.message( "CPU Info: AHB Clock Frequency: %ld Hz\r\n", HAL_RCC_GetHCLKFreq());
-        g_AppTrace.message( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
-        g_AppTrace.message( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
-
-        CmnChipUID_t uid;
-        rh_cmn_chip__uid( &uid);
-        g_AppTrace.message( "Device Serial Number: %02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d\r\n", uid.raw[0],uid.raw[1],uid.raw[2],uid.raw[3],uid.raw[4],uid.raw[5],uid.raw[6],uid.raw[7],uid.raw[8],uid.raw[9],uid.raw[10],uid.raw[11]);
-
-        vTaskDelay(10000);
-    }
-}
-
-
-#include <string.h>
-
-
-void task( void* param){
-    static u32 cnt = 0;
-    while(1){
-        int a,b;
-        a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d+%d=%d\r\n", cnt++, a,b,a+b);
-        a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d-%d=%d\r\n", cnt++, a,b,a-b);
-        a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d*%d=%d\r\n", cnt++, a,b,a*b);
-        a=(rand()&0xff); b=(rand()&0xff);
-        g_AppTrace.message( "Arithmetic Function [%d]: %d/%d=%d\r\n", cnt++, a,b,b==0? 0xFFFFFFFF: (a/b));
-        g_AppTrace.main( 0, 0);
-        vTaskDelay(100);
-    }
-
-    g_AppTrace.exit(0);
-}
-
-void task_mem_preview( void* param){
-    extern uint8_t *ucHeap;
-    while(1){
-        size_t offset = rand()%configTOTAL_HEAP_SIZE;
-        size_t len    = rand()%(configTOTAL_HEAP_SIZE-offset);
-        len = RH_MIN( 512, len);
-        const u8* ptr = ucHeap+offset;
-        g_AppTrace.message("Memory Preview @%p length=%ld\r\n", ptr, len);
-
-        taskENTER_CRITICAL();
-        for(int i=0; i<len; ++i){
-            g_AppTrace.message("%02x ", *ptr++);
-        }
-
-        g_AppTrace.message("\r\n");
-        taskEXIT_CRITICAL();
-        vTaskDelay(756);
-    }
-    
-}
 
 
 void task_init( void *param){
     while(1){
+
+        /* Peripheral Initialization */
         rh_cmn_gpio__init();                
         vTaskDelay(10);
         rh_cmn_usart__init( kCmnConst__USART_BAUDRATE);
         vTaskDelay(10);
         rh_cmn_spi__init( kCmnSpiFreq_48MHz);
         vTaskDelay(10);
+        rh_cmn_clk__mco_disable();
+        vTaskDelay(10);
+
+
+        /* BSP Initialization */
         rh_bsp_screen__init();
         vTaskDelay(10);
 
+        /* Application Sanity Test */
+        /**
+         * @note    If failed, infinite loop
+         * @note    Run when `RH_APP_CFG__ENABLE_CI` enabled
+         * @note    All application will be reset after the test
+        */
+#if defined (RH_APP_CFG__ENABLE_CI) && (((RH_APP_CFG__ENABLE_CI))==(true))
+        extern int rh_app_trace__ci_sanity( void);
+        
+        if(0!=rh_app_trace__ci_sanity()){
+            while(1);
+        }
+#endif
+
+        /* Application Start */
         g_AppTrace.launch();
+        g_AppGui.launch();
+        
+        /* Print General Information */
+        CmnChipUID_t uid;
+        rh_cmn_chip__uid( &uid);
+        g_AppTrace.printf( "Device Serial Number: %02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d\r\n", uid.raw[0],uid.raw[1],uid.raw[2],uid.raw[3],uid.raw[4],uid.raw[5],uid.raw[6],uid.raw[7],uid.raw[8],uid.raw[9],uid.raw[10],uid.raw[11]);
 
-        rh_cmn_clk__mco_enable();
+        g_AppTrace.printf( "CPU Info: System Core Frequency: %ld Hz\r\n", HAL_RCC_GetSysClockFreq());
+        g_AppTrace.printf( "CPU Info: AHB Clock Frequency: %ld Hz\r\n", HAL_RCC_GetHCLKFreq());
+        g_AppTrace.printf( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
+        g_AppTrace.printf( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
 
-        xTaskCreate( task_print_cpu_info, "USART task", 1024U, NULL, 40U, NULL);
-        xTaskCreate( task_switch_color,   "Screen task", 1024U, NULL, 45U, NULL);
-        xTaskCreate( task_blink, "LED task", 1024U, NULL, 40U, NULL);
-        xTaskCreate( task, "App Trace task", 1024U, NULL, 45U, NULL);
-        xTaskCreate( task_mem_preview, "Mem Preview task", 1024U, NULL, 46U, NULL);
+        /* Initialization Completed */
         vTaskDelete(NULL);
     }
 }
@@ -240,13 +194,13 @@ void task_init( void *param){
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_cortex.h"
 
-
 #include "rh_app.h"
+
+
 
 int main( int argc, char const *argv[]){
 
     HAL_NVIC_SetPriorityGrouping( NVIC_PRIORITYGROUP_4 );
-
     rh_cmn_clk__set_cpu( kCmnCpuFreq_96MHz);
     rh_cmn_clk__systick_enable( kCmnSystickFreq_1KHz);
 

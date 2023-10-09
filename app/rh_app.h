@@ -22,6 +22,7 @@
 
 
 /* Exported macro ------------------------------------------------------------*/
+#define RH_APP_CFG__ENABLE_CI                       (true)
 #define RH_APP_CFG__DEBUG                           (true)
 #define RH_APP_CFG__TRACE__ENABLE_TX                (true)
 #define RH_APP_CFG__TRACE__ENABLE_RX                (true)
@@ -36,10 +37,16 @@
 
 /* Exported types ------------------------------------------------------------*/
 enum AppConst{
-    kAppConst__TRACE_STATIC_STACK_SIZE             = (4096),
+    kAppConst__TRACE_STACK_DEPTH                   = (1024),
     kAppConst__TRACE_MESSAGE_BUFFER_SIZE_POW_LEVEL = (12),     // 2^12 = 4096
     kAppConst__TRACE_PRIORITY                      = (20),
-    kAppConst__TRACE_MAX_WAIT_TICK                 = (50)
+    kAppConst__TRACE_MAX_WAIT_TICK                 = (50),
+    kAppConst__GUI_STACK_DEPTH                     = (1024),
+    kAppConst__GUI_FRAME_RATE_MS                   = (10),
+    kAppConst__GUI_NUM_OF_GRAM                     = (2),
+    kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM           = (240*4),
+    kAppConst__GUI_PRIORITY                        = (50)
+
 };
 
 
