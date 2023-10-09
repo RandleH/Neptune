@@ -74,6 +74,17 @@ u32 rh_cmn_usart__send_blk( const u8 *buf, size_t nItems, u8* pDone);
 
 int rh_cmn_usart__printf( char const *fmt, ...);
 
+/**
+ * @brief     Standard result print function
+ * @note      Usage:  rh_cmn_usart__rprintf( 1+1==2, '.', "Test result of %d+%d=%d",  )
+*/
+#define rh_cmn_usart__rprintf( result, padding, prefix_fmt, ...)\
+    do{\
+        char tmp[(1<<kCmnConst__USART_BUFFER_SIZE_POW_2)] = {0};\
+        memset( tmp, (padding), (sizeof(tmp)/sizeof(char))-1);\
+        int a = rh_cmn_usart__printf( (prefix_fmt), __VA_ARGS__);\
+        rh_cmn_usart__printf("%*.*s %s\r\n", sizeof(tmp)/sizeof(char)-a+1, sizeof(tmp)/sizeof(char)-a, tmp, (result)==true?"Passed":"Failed");\
+    }while(0)
 
 #ifdef __cplusplus
 }

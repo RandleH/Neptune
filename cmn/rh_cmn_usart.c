@@ -244,13 +244,8 @@ int rh_cmn_usart__printf( char const *fmt, ...){
     va_start( ap, fmt);
     int len = vsnprintf( tmp, 256U, fmt, ap);
     va_end(ap);
-
-    if( len==-1 )
-        return 1;
-
-    rh_cmn_usart__send_blk( tmp, len, NULL);
-
-    return 0;
+    rh_cmn_usart__send_blk( tmp, RH_MIN(len,256), NULL);
+    return len;
 }
 
 
