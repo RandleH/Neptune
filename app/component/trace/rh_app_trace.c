@@ -86,13 +86,16 @@ static void util__get_next_available( size_t required_length, SlotInfo_t *return
 static void util__push_back_node( u32 idx);
 static void util__pop_front_node( u32 idx);
 
+static inline void util__transfer_tx( void);
+static inline void util__transfer_rx( void);
+
 
 static void task_func__tx( void* ptr);
 static void task_func__rx( void* ptr);
 
 
 static u32 launch( void);
-static u32 message( const char *fmt, ...);
+static int printf_func( const char *fmt, ...);
 static int main_function( int argc, const char*argv[]);
 static int exit_function( int);
 
@@ -193,8 +196,8 @@ static void util__get_next_available( size_t required_length, SlotInfo_t *return
                 return_result->status = kSlotStatusCompact;
 
                 /**
-                 * @note Either condition will result in same solution exentually in `message()`
-                 * @note If current slot is full, and returned result designats this full slot index, then it will result a passing length of `0` of copying item in `message()`. Error may or may NOT occur. Therefore here to take a further check to avoid that condition.
+                 * @note Either condition will result in same solution exentually in `printf_func()`
+                 * @note If current slot is full, and returned result designats this full slot index, then it will result a passing length of `0` of copying item in `printf_func()`. Error may or may NOT occur. Therefore here to take a further check to avoid that condition.
                 */
                 if( self->buffer.anchor.pEnd->len==PER_BUFFER_SIZE ){
                     /* Assign a new slot */
@@ -238,40 +241,52 @@ static void util__get_next_available( size_t required_length, SlotInfo_t *return
     }
 }
 
-#if RH_APP_CFG__DEBUG
-/**
- * @brief       Task function for app general report
- * @note        
-*/
-static void task_func_report( void* param){
 
-    while(1){ 
+/**
+ * @brief       Transfer function TX. No check
+ * @note        Keep sending until empty
+*/
+static inline void util__transfer_tx( void){
+    while( self->buffer.anchor.pHead!=NULL ){
+        u32 idx = (self->buffer.anchor.pHead - &self->buffer.slot[0]);
+        rh_cmn__assert( IS_TX_FULL_AT( self, idx)==true, "Empty buffer exists in linked list.");
+            
+        /* Request access to shared resource */
+        if( xSemaphoreTake( self->lock_handle, portMAX_DELAY)==pdTRUE){
+            /* Send data non-blockly */
+            rh_cmn_usart__send_dma( self->buffer.anchor.pHead->addr, self->buffer.anchor.pHead->len, NULL);
+
+            if( self->buffer.anchor.pHead->pNext==NULL ){
+                /* Reached the end of linked list */
+                self->buffer.anchor.pEnd = (AppTraceUnit_t*)&self->buffer.anchor;
+            }
+            /* Remove this node from linked list */
+            self->buffer.anchor.pHead = self->buffer.anchor.pHead->pNext;
+
+            /* Reset this node */
+            self->buffer.slot[idx].len   = 0;
+            self->buffer.slot[idx].pNext = NULL;
+
+            /* Set to empty */
+            SET_TX_EMPTY_AT( self, idx);
+
+            /* Free shared resource */
+            xSemaphoreGive( self->lock_handle);
 
 #if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK
-    int water_mark = self->stack_water_mark;
-#else
-    int water_mark = -1;
+            self->stack_water_mark = RH_MAX( self->stack_water_mark, uxTaskGetStackHighWaterMark( NULL ));
 #endif /* RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK */
-
-        ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-        self->message( "App Trace Self Report -----------------------------\r\n"\
-                       "Buffer Usage: %d/32\r\n"\
-                       "TX Priority: %d\r\n"\
-                       "RX Priority: %d\r\n"\
-                       "Highest Stack Watermark: %d\r\n",\
-                       util__get_buffer_remaining_slot(),\
-                       uxTaskPriorityGet(self->task_tx),\
-                       uxTaskPriorityGet(self->task_rx),\
-                       water_mark);
-        /**
-        * @note Since self report was time sensitive, send message as soon as possible.
-        */
-        self->force_to_clear = true;
+        }
     }
-    
 }
-#endif /* RH_APP_CFG__DEBUG */
 
+/**
+ * @brief       Transfer function RX. No check
+ * @note        Keep receiving until FIFO empty
+*/
+static inline void util__transfer_rx( void){
+    #warning "Unimplimented"
+}
 
 /**
  * @brief       Task function for TX
@@ -287,41 +302,11 @@ static void task_func__tx( void* ptr){
             taskENTER_CRITICAL();
         }
         
-        while( self->buffer.anchor.pHead!=NULL ){
-            u32 idx = (self->buffer.anchor.pHead - &self->buffer.slot[0]);
-            rh_cmn__assert( IS_TX_FULL_AT( self, idx)==true, "Empty buffer exists in linked list.");
-                
-            /* Request access to shared resource */
-            if( xSemaphoreTake( self->lock_handle, portMAX_DELAY)==pdTRUE){
-                /* Send data non-blockly */
-                rh_cmn_usart__send_dma( self->buffer.anchor.pHead->addr, self->buffer.anchor.pHead->len, NULL);
+        util__transfer_tx();
 
-                if( self->buffer.anchor.pHead->pNext==NULL ){
-                    /* Reached the end of linked list */
-                    self->buffer.anchor.pEnd = (AppTraceUnit_t*)&self->buffer.anchor;
-                }
-                /* Remove this node from linked list */
-                self->buffer.anchor.pHead = self->buffer.anchor.pHead->pNext;
-
-                /* Reset this node */
-                self->buffer.slot[idx].len   = 0;
-                self->buffer.slot[idx].pNext = NULL;
-
-                /* Set to empty */
-                SET_TX_EMPTY_AT( self, idx);
-
-                /* Free shared resource */
-                xSemaphoreGive( self->lock_handle);
-
-#if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK
-                self->stack_water_mark = RH_MAX( self->stack_water_mark, uxTaskGetStackHighWaterMark( NULL ));
-#endif /* RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK */
-
-            }
-        }
         if( self->force_to_clear==true ){
             taskEXIT_CRITICAL();
-            #warning "Should only affect `self->message()`, not to suspend all process"
+            #warning "Should only affect `self->printf()`, not to suspend all process"
         }
         
         util__adjust_priority_task_tx();
@@ -376,23 +361,22 @@ static inline void util__pop_front_node( u32 idx){
 */
 static u32 launch( void){
     u32 res = 0x00000000;
-    static StaticTask_t task_tcb_rx = {0};
-    g_AppTrace.task_rx = xTaskCreateStatic(     task_func__rx, 
-                                                "App Trace - RX", 
-                                                sizeof(g_AppTrace.stack)/sizeof(StackType_t), 
-                                                &g_AppTrace, 
-                                                kAppConst__TRACE_PRIORITY, 
-                                                g_AppTrace.stack, 
-                                                &task_tcb_rx);
 
-    res |= (NULL==self->task_rx) << 0;
+    if( self->task_rx==NULL ){
+        xTaskCreate( task_func__rx, "App Trace - RX", (kAppConst__TRACE_STACK_DEPTH/2), &g_AppTrace, kAppConst__TRACE_PRIORITY, &g_AppTrace.task_rx);
+        res |= (NULL==self->task_rx) << 0;
+    }
     
-    xTaskCreate( task_func__tx, "App Trace - TX", 512U, &g_AppTrace, kAppConst__TRACE_PRIORITY, &g_AppTrace.task_tx);
-    res |= (NULL==self->task_tx) << 1;
+    if( self->task_tx==NULL ){
+        xTaskCreate( task_func__tx, "App Trace - TX", (kAppConst__TRACE_STACK_DEPTH/2), &g_AppTrace, kAppConst__TRACE_PRIORITY, &g_AppTrace.task_tx);
+        res |= (NULL==self->task_tx) << 1;
+    }
     
-    self->lock_handle = xSemaphoreCreateMutexStatic( &self->lock_buffer );
-    res |= (NULL==self->lock_handle)<<2;
-
+    if( self->lock_handle==NULL){
+        self->lock_handle = xSemaphoreCreateMutexStatic( &self->lock_buffer );
+        res |= (NULL==self->lock_handle)<<2;
+    }
+    
     return res;
 }
 
@@ -404,7 +388,7 @@ static u32 launch( void){
  *              Return 1 if data partially send due to the buffer overflow
  *              Return 2 if failed
 */
-static u32 message( const char *fmt, ...){
+static int printf_func( const char *fmt, ...){
     if( self->task_tx==NULL || fmt==NULL ){
         /* App uninitialized */
         return 2;
@@ -413,6 +397,7 @@ static u32 message( const char *fmt, ...){
     u32     ret    = RET_OK;        /* Value about to return */
     va_list args1, args2; va_start( args1, fmt); va_copy( args2, args1);
     u32     len    = 1+vsnprintf( NULL, 0, fmt, args1); /* Required length for formatted string, including the terminal symbol '\0' */
+    int     required_len = len;     /* Returned value subject to ISO standard */
     va_end( args1);
 
     rh_cmn__assert( (0xFFFFFFFF==(self->buffer.mask_tx | self->buffer.mask_rx)), "TX RX buffer should NOT be overlapped" );
@@ -547,7 +532,8 @@ static u32 message( const char *fmt, ...){
         util__adjust_priority_task_tx();
     }
     
-    return ret;
+    // return ret;
+    return required_len;
 } 
 
 
@@ -557,8 +543,31 @@ static u32 message( const char *fmt, ...){
  * @return      Always return 0
 */
 static int exit_function( int status){
-    vTaskDelete( g_AppTrace.task_tx);
+    taskENTER_CRITICAL();
+    self->force_to_clear = true;
+
+    if( NULL!=g_AppTrace.task_tx ){
+        if( status==0 ){
+            util__transfer_tx();
+        }
+        vTaskDelete( g_AppTrace.task_tx);
+    }
+
+    if( NULL!=g_AppTrace.task_rx ){
+        if( status==0 ){
+            util__transfer_rx();
+        }
+        vTaskDelete( g_AppTrace.task_rx);
+    }
+
+    vSemaphoreDelete( self->lock_handle);
+    
     g_AppTrace.task_tx = NULL;
+    g_AppTrace.task_rx = NULL;
+
+    
+    
+    taskEXIT_CRITICAL();
 
     return status;
 }
@@ -570,34 +579,26 @@ static int exit_function( int status){
  * @return      Always return 0
 */
 static int main_function( int argc, const char*argv[]){
-    
-    g_AppTrace.message( "App Trace Self Report -----------------------------\r\r\n"\
-                        "Buffer Usage: %d/32\r\n"\
-                        "TX Priority: %d\r\n"\
-                        "RX Priority: %d\r\n"\
-                        "Highest Stack Watermark: %d\r\n",\
-                       util__get_buffer_remaining_slot(),\
-                       uxTaskPriorityGet(self->task_tx),\
-                       uxTaskPriorityGet(self->task_rx),\
-                       self->stack_water_mark);
 
     return 0;
 }
 
 
-
-#if RH_APP_CFG__DEBUG
 /**
- * @brief       App Trace - CI test program
- * @var     
- * @return      
+ * @brief   Erases any input or output buffered in the given stream.  For output streams this discards any unwritten output.
 */
-u32 rh_app_trace__ci( int(*print_func)(const char*,...), int var){
-    // memset( self, 0, sizeof())
-    return false;
+static int purge_function( void){
+    memset( &self->buffer, '\0', sizeof(self->buffer));
+    self->buffer.mask_rx = 0xFFFFFFFF;
+    self->buffer.mask_tx = 0xFFFFFFFF;
+    self->buffer.anchor.pHead = NULL;
+    self->buffer.anchor.pEnd  = (AppTraceUnit_t*)(&self->buffer.anchor);
+    self->force_to_clear      = false;
+
+    return 0;
 }
 
-#endif
+
 
 /* Exported variable ---------------------------------------------------------*/
 AppTrace_t g_AppTrace = {
@@ -612,8 +613,9 @@ AppTrace_t g_AppTrace = {
         }
     },
     .launch      = launch,
-    .message     = message,
+    .printf      = printf_func,
     .main        = main_function,
+    .purge       = purge_function,
     .exit        = exit_function
 };
 

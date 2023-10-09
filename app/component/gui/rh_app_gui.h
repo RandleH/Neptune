@@ -26,14 +26,39 @@
 #include "rh_common.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "lvgl.h"
+
+
+/**
+ * @brief       Application Super Structure
+ * @note        Globally created in program
+ *              size: ? bytes
+ * @attention   Do NOT change any value. Use api function instead
+ *              Do NOT define in any functions.
+*/
+typedef struct AppGui{
+    /* Private -----------------------------------------------------------*/
+    TaskHandle_t    task_refreash;  /* !< Task to refreash screen */
+    
+    TaskHandle_t    task_master;    /* !< Task that take ctrl of the screen */
+    
+    lv_color_t         gram[kAppConst__GUI_NUM_OF_GRAM][kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM];
+    lv_disp_t         *display;
+    lv_disp_drv_t      driver;
+    lv_disp_draw_buf_t buf;
+
+    
+    /* Public ------------------------------------------------------------*/
+    int  (*launch)( void);
+    void (*yeild)( TaskHandle_t from_whom);
+    int  (*request)( TaskHandle_t from_whom );
+    void (*halt)( void);
+    
+}AppGui_t;
 
 
 
-/* Exported tasks ------------------------------------------------------------*/
-int app_gui_main( void);
-int app_gui_exit( void);
-
-
+extern AppGui_t g_AppGui;
 
 #endif
 
