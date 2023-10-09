@@ -16,10 +16,12 @@
         "task.h": "c",
         "stm32f4xx_hal_usart.h": "c",
         "stm32f4xx_hal_gpio.h": "c",
-        "semphr.h": "c"
+        "semphr.h": "c",
+        "string.h": "c"
     },
 
 
     "cortex-debug.gdbPath": "/opt/homebrew/bin/arm-none-eabi-gdb",
-    "cortex-debug.JLinkGDBServerPath": "/usr/local/bin/JLinkGDBServer"
+    "cortex-debug.JLinkGDBServerPath": "/usr/local/bin/JLinkGDBServer",
+    "cortex-debug.variableUseNaturalFormat": true
 }
