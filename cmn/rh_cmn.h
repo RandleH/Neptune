@@ -58,7 +58,7 @@
 
 /* Exported types ------------------------------------------------------------*/
 enum CmnConst{
-    kCmnConst__USART_BUFFER_SIZE_POW_2   = 10     ,\
+    kCmnConst__USART_BUFFER_SIZE_POW_2   = 6      , /*!< Recommanded value: 5~7 */ 
     kCmnConst__USART_RX_IRQ_PRIORITY     = 7      ,\
     kCmnConst__USART_TX_IRQ_PRIORITY     = 7      ,\
     kCmnConst__USART_BAUDRATE            = 115200 ,\
