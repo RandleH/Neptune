@@ -1,5 +1,3 @@
-
-
 # Ref: https://www.reddit.com/r/embedded/comments/qkcfjt/cmake_setup_for_project_with_stm32_how_to_switch/
 # Ref: https://gist.github.com/eugene-babichenko/3118042a23d2082bfba624f3f2039843
 # Ref: https://stackoverflow.com/questions/36122358/visual-studio-code-c-include-path
@@ -7,156 +5,125 @@
 cmake_minimum_required(VERSION 3.13)
 
 
+
+MACRO( GET_SUBDIR result curdir)
+    file(GLOB_RECURSE children LIST_DIRECTORIES TRUE CONFIGURE_DEPENDS "${curdir}/*" )
+    SET(dirlist "")
+    FOREACH(child ${children})
+        IF(IS_DIRECTORY ${child})
+            LIST(APPEND dirlist ${child})
+        ENDIF()
+    ENDFOREACH()
+    SET(${result} ${dirlist})
+ENDMACRO()
+
+
 # Tool Chain Setup
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/arm-gcc-toolchain.cmake)
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message("Target set to debug version.")
-elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    message("Target set to release.")
-endif()
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_TOOLCHAIN_FILE                ${CMAKE_SOURCE_DIR}/arm-gcc-toolchain.cmake)
+set(CMAKE_EXPORT_COMPILE_COMMANDS       ON)
 
 # Project Setup
 project( model1 C CXX ASM)
 
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS ON)
+set(CMAKE_C_STANDARD                    99)
+set(CMAKE_C_STANDARD_REQUIRED           ON)
+set(CMAKE_C_EXTENSIONS                  ON)
+set(CMAKE_CROSSCOMPILING ON CACHE BOOL "Cross-compiling" FORCE)
 
 
 
-# Customed Source File Setting
-set( startup_script ${CMAKE_SOURCE_DIR}/cfg/startup_stm32f411xe.S)
+message( "RANDLEH in TOP: ${CMAKE_C_COMPILER}")
 
-set( cmsis_script   ${CMAKE_SOURCE_DIR}/cfg/system_stm32f4xx.c)
+#########################################################################################################
+# Project Path & Source Files Definition
+#########################################################################################################
+set( PRJ_TOP                        ${CMAKE_SOURCE_DIR})
 
-set( config_include ${CMAKE_SOURCE_DIR}/cfg)
-set( lvgl_include   ${CMAKE_SOURCE_DIR}/lib/lvgl)
+set( SRC_LIST                       ${PRJ_TOP}/cfg/startup_stm32f411xe.S
+                                    ${PRJ_TOP}/cfg/system_stm32f4xx.c
+                                    ${PRJ_TOP}/main.c   )
 
-set( config_define -DSTM32F411xE -DUSE_HAL_DRIVER)
-set( lvgl_define -DLV_USE_DEV_VERSION)
+set( INC_DIR_LIST                   ${PRJ_TOP}
+                                    ${PRJ_TOP}/cfg)
 
-set( LV_CONF_PATH   ${CMAKE_SOURCE_DIR}/cfg/lv_conf.h)
-add_subdirectory( lib/lvgl              ${CMAKE_SOURCE_DIR}/build/lvgl/build)
+set( DEF_LIST                       "")
 
-
-
-
-# Select the native compile PORT
-# set( FREERTOS_PORT "GCC_POSIX" CACHE STRING "" FORCE)
-# Select the cross-compile PORT
-# if (CMAKE_CROSSCOMPILING)
-#     message("Compile in ISS mode")
-#     set(FREERTOS_PORT "GCC_ARM_CM4F" CACHE STRING "" FORCE)
-# endif()
-
-message("Compile in ISS mode")
-set( FREERTOS_HEAP "4" CACHE STRING "" FORCE)
-set( FREERTOS_PORT "GCC_ARM_CM4F" CACHE STRING "" FORCE)
-set( freertos_include               ${CMAKE_SOURCE_DIR}/lib/FreeRTOS-Kernel/include
-                                    ${CMAKE_SOURCE_DIR}/lib/FreeRTOS-Kernel/portable/GCC/ARM_CM4F)
+set( TARGET_LIST                    "")
 
 
+#########################################################################################################
+# Target Compile Option Flag
+#########################################################################################################
+set( CXX_FLAG                       -fdata-sections
+                                    -ffunction-sections
+                                    -Wall
+                                    -Wno-pedantic
+                                    )
 
-# FetchContent_MakeAvailable(freertos_kernel)
-# target_compile_definitions(freertos_config INTERFACE ${definitions})
-# target_compile_options(freertos_config INTERFACE ${options})
-
-
-
-set( cpu_params         -mcpu=cortex-m4
-                        -mthumb
-                        -mfpu=fpv4-sp-d16
-                        -mfloat-abi=hard)
-
-include_directories( BEFORE SYSTEM      ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/CMSIS/Device/ST/STM32F4xx/Include
-                                        ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/CMSIS/Core/Include
-                                        ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc
-                                        ${config_include}
-                                        ${lvgl_include}
-                                        ${freertos_include}
-                                        ${CMAKE_SOURCE_DIR}
-                                        ${CMAKE_SOURCE_DIR}/app
-                                        ${CMAKE_SOURCE_DIR}/app/component/gui
-                                        ${CMAKE_SOURCE_DIR}/app/component/time
-                                        ${CMAKE_SOURCE_DIR}/app/component/trace
-                                        ${CMAKE_SOURCE_DIR}/app/component/util
-                                        ${CMAKE_SOURCE_DIR}/bsp
-                                        ${CMAKE_SOURCE_DIR}/cmn)
-
-aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/gui     source_app_gui)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/util    source_app_util)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/time    source_app_time)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/trace   source_app_trace)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/app/component/trace/ci   source_app_trace_ci)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/bsp     source_bsp)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/cmn     source_cmn)
-aux_source_directory( ${CMAKE_SOURCE_DIR}/lib/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src  source_stm32hal)
+set( CPU_FLAG                       -mcpu=cortex-m4
+                                    -mthumb
+                                    -mfloat-abi=hard
+                                    -mfpu=fpv4-sp-d16
+                                    )
 
 
-add_definitions( ${config_define} ${lvgl_define})
-add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
+#########################################################################################################
+# Target Linking Option Flag
+#########################################################################################################
+set( LINK_FLAG                      -T${PRJ_TOP}/cfg/STM32F411CEUX_FLASH.ld
+                                    -specs=nosys.specs
+                                    -lc
+                                    -lm
+                                    -lnosys
+                                    -Wl,-Map=${PROJECT_NAME}.map,--cref
+                                    -Wl,--gc-sections
+                                    )
+
+add_compile_options( ${CPU_FLAG})
+add_link_options( ${CPU_FLAG})
+
+#########################################################################################################
+# Additional Setting for Debug or Release
+#########################################################################################################
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message("Target set to debug version.")
+    include( ${PRJ_TOP}/debug.cmake)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+    message("Target set to release.")
+    include( ${PRJ_TOP}/release.cmake)
+endif()
 
 
-add_executable( ${PROJECT_NAME}.elf                     ${CMAKE_SOURCE_DIR}/main.c
-                                                        ${startup_script}
-                                                        ${cmsis_script}
-                                                        ${source_app_gui}
-                                                        ${source_app_util}
-                                                        ${source_app_time}
-                                                        ${source_app_trace}
-                                                        ${source_app_trace_ci}
-                                                        ${source_cmn}
-                                                        ${source_bsp}
-                                                        ${source_stm32hal})
+#########################################################################################################
+# Add Modules
+#########################################################################################################
+include( ${PRJ_TOP}/app/rh_app.cmake)
+include( ${PRJ_TOP}/bsp/rh_bsp.cmake)
+include( ${PRJ_TOP}/cmn/rh_cmn.cmake)
+include( ${PRJ_TOP}/lib/rh_lib.cmake)
 
-target_compile_definitions(${PROJECT_NAME}.elf PRIVATE      ${config_define})
 
-target_compile_options( ${PROJECT_NAME}.elf PRIVATE     ${cpu_params}
-                                                        -fdata-sections
-                                                        -ffunction-sections
-                                                        -Wall
-                                                        -Wno-pedantic
-                                                        $<$<CONFIG:Debug>:-Og>)
+#########################################################################################################
+# Final Execution 
+#########################################################################################################
+add_definitions( ${DEF_LIST})
 
-target_link_options(${PROJECT_NAME}.elf PRIVATE          -T${CMAKE_SOURCE_DIR}/cfg/STM32F411CEUX_FLASH.ld
-                                                        ${cpu_params}
-                                                        -specs=nano.specs
-                                                        -specs=nosys.specs
-                                                        -lc
-                                                        -lm
-                                                        -lnosys
-                                                        -Wl,-Map=${PROJECT_NAME}.map,--cref
-                                                        -Wl,--gc-sections)
+include_directories( BEFORE ${INC_DIR_LIST})
+
+# message( "RANDLEH: ${SRC_LIST}")
+
+add_executable( ${PROJECT_NAME}.elf  ${SRC_LIST})
+
+target_compile_options ( ${PROJECT_NAME}.elf  PUBLIC      ${CMAKE_CXX_FLAGS} ${CPU_FLAG} ${CXX_FLAG})
+target_link_options    ( ${PROJECT_NAME}.elf  PUBLIC      ${LINK_FLAG} ${CPU_FLAG} )
+
+target_link_libraries( ${PROJECT_NAME}.elf PUBLIC  ${TARGET_LIST})
 
 
 
-add_library(freertos_config INTERFACE)
-add_subdirectory( lib/FreeRTOS-Kernel   ${CMAKE_SOURCE_DIR}/build/freertos/build)
-
-target_compile_options( freertos_config     INTERFACE     ${cpu_params}
-                                                        -fdata-sections
-                                                        -ffunction-sections
-                                                        -Wall
-                                                        -Wno-pedantic
-                                                        $<$<CONFIG:Debug>:-Og>)
-
-target_include_directories(freertos_config SYSTEM
-INTERFACE
-    ${CMAKE_SOURCE_DIR}/cfg
-)
-
-target_compile_definitions(freertos_config
-    INTERFACE
-    projCOVERAGE_TEST=0
-)
-                                                        
-target_link_libraries( ${PROJECT_NAME}.elf      freertos_kernel  
-                                                lvgl)
-
-
+#########################################################################################################
+# Output BIN/HEX files
+#########################################################################################################
 set(HEX_FILE ${CMAKE_SOURCE_DIR}/build/${PROJECT_NAME}.hex)
 set(BIN_FILE ${CMAKE_SOURCE_DIR}/build/${PROJECT_NAME}.bin)
 add_custom_command(     TARGET  ${PROJECT_NAME}.elf POST_BUILD
@@ -165,5 +132,42 @@ add_custom_command(     TARGET  ${PROJECT_NAME}.elf POST_BUILD
                         COMMENT "Building ${HEX_FILE} \nBuilding ${BIN_FILE}")
 
 
+if(NOT CMAKE_PROPERTY_LIST)
+    execute_process(COMMAND cmake --help-property-list OUTPUT_VARIABLE CMAKE_PROPERTY_LIST)
+    
+    # Convert command output into a CMake list
+    string(REGEX REPLACE ";" "\\\\;" CMAKE_PROPERTY_LIST "${CMAKE_PROPERTY_LIST}")
+    string(REGEX REPLACE "\n" ";" CMAKE_PROPERTY_LIST "${CMAKE_PROPERTY_LIST}")
+    list(REMOVE_DUPLICATES CMAKE_PROPERTY_LIST)
+endif()
+    
+function(print_properties)
+    message("CMAKE_PROPERTY_LIST = ${CMAKE_PROPERTY_LIST}")
+endfunction()
+    
+function(print_target_properties target)
+    if(NOT TARGET ${target})
+        message(STATUS "There is no target named '${target}'")
+        return()
+    endif()
 
-  
+    foreach(property ${CMAKE_PROPERTY_LIST})
+        string(REPLACE "<CONFIG>" "${CMAKE_BUILD_TYPE}" property ${property})
+
+        # Fix https://stackoverflow.com/questions/32197663/how-can-i-remove-the-the-location-property-may-not-be-read-from-target-error-i
+        if(property STREQUAL "LOCATION" OR property MATCHES "^LOCATION_" OR property MATCHES "_LOCATION$")
+            continue()
+        endif()
+
+        get_property(was_set TARGET ${target} PROPERTY ${property} SET)
+        if(was_set)
+            get_target_property(value ${target} ${property})
+            message("${target} ${property} = ${value}")
+        endif()
+    endforeach()
+endfunction()                        
+
+
+
+
+print_target_properties( ${PROJECT_NAME}.elf )
