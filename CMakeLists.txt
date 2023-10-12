@@ -31,9 +31,6 @@ set(CMAKE_C_EXTENSIONS                  ON)
 set(CMAKE_CROSSCOMPILING ON CACHE BOOL "Cross-compiling" FORCE)
 
 
-
-message( "RANDLEH in TOP: ${CMAKE_C_COMPILER}")
-
 #########################################################################################################
 # Project Path & Source Files Definition
 #########################################################################################################
@@ -86,10 +83,10 @@ add_link_options( ${CPU_FLAG})
 # Additional Setting for Debug or Release
 #########################################################################################################
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message("Target set to debug version.")
+    message( STATUS "Target set to debug version.")
     include( ${PRJ_TOP}/debug.cmake)
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    message("Target set to release.")
+    message( STATUS "Target set to release.")
     include( ${PRJ_TOP}/release.cmake)
 endif()
 
@@ -97,6 +94,7 @@ endif()
 #########################################################################################################
 # Add Modules
 #########################################################################################################
+message( STATUS "Deploying project modules...")
 include( ${PRJ_TOP}/app/rh_app.cmake)
 include( ${PRJ_TOP}/bsp/rh_bsp.cmake)
 include( ${PRJ_TOP}/cmn/rh_cmn.cmake)
@@ -106,19 +104,28 @@ include( ${PRJ_TOP}/lib/rh_lib.cmake)
 #########################################################################################################
 # Final Execution 
 #########################################################################################################
+message( STATUS "Deploying targets...")
 add_definitions( ${DEF_LIST})
-
 include_directories( BEFORE ${INC_DIR_LIST})
-
-# message( "RANDLEH: ${SRC_LIST}")
 
 add_executable( ${PROJECT_NAME}.elf  ${SRC_LIST})
 
 target_compile_options ( ${PROJECT_NAME}.elf  PUBLIC      ${CMAKE_CXX_FLAGS} ${CPU_FLAG} ${CXX_FLAG})
 target_link_options    ( ${PROJECT_NAME}.elf  PUBLIC      ${LINK_FLAG} ${CPU_FLAG} )
-
 target_link_libraries( ${PROJECT_NAME}.elf PUBLIC  ${TARGET_LIST})
 
+include( ${PRJ_TOP}/utility.cmake)
+foreach( target ${TARGET_LIST})
+    message("================================================================================")
+    message( "Library Target property: ${target}")
+    message("================================================================================")
+    print_target_properties( ${target})
+endforeach()
+
+message("================================================================================")
+message( "Executable target property: ${PROJECT_NAME}.elf")
+message("================================================================================")
+print_target_properties( ${PROJECT_NAME}.elf)
 
 
 #########################################################################################################
@@ -132,42 +139,16 @@ add_custom_command(     TARGET  ${PROJECT_NAME}.elf POST_BUILD
                         COMMENT "Building ${HEX_FILE} \nBuilding ${BIN_FILE}")
 
 
-if(NOT CMAKE_PROPERTY_LIST)
-    execute_process(COMMAND cmake --help-property-list OUTPUT_VARIABLE CMAKE_PROPERTY_LIST)
-    
-    # Convert command output into a CMake list
-    string(REGEX REPLACE ";" "\\\\;" CMAKE_PROPERTY_LIST "${CMAKE_PROPERTY_LIST}")
-    string(REGEX REPLACE "\n" ";" CMAKE_PROPERTY_LIST "${CMAKE_PROPERTY_LIST}")
-    list(REMOVE_DUPLICATES CMAKE_PROPERTY_LIST)
-endif()
-    
-function(print_properties)
-    message("CMAKE_PROPERTY_LIST = ${CMAKE_PROPERTY_LIST}")
-endfunction()
-    
-function(print_target_properties target)
-    if(NOT TARGET ${target})
-        message(STATUS "There is no target named '${target}'")
-        return()
-    endif()
-
-    foreach(property ${CMAKE_PROPERTY_LIST})
-        string(REPLACE "<CONFIG>" "${CMAKE_BUILD_TYPE}" property ${property})
-
-        # Fix https://stackoverflow.com/questions/32197663/how-can-i-remove-the-the-location-property-may-not-be-read-from-target-error-i
-        if(property STREQUAL "LOCATION" OR property MATCHES "^LOCATION_" OR property MATCHES "_LOCATION$")
-            continue()
-        endif()
-
-        get_property(was_set TARGET ${target} PROPERTY ${property} SET)
-        if(was_set)
-            get_target_property(value ${target} ${property})
-            message("${target} ${property} = ${value}")
-        endif()
-    endforeach()
-endfunction()                        
 
 
 
 
-print_target_properties( ${PROJECT_NAME}.elf )
+
+
+
+
+
+
+
+
+
