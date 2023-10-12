@@ -33,12 +33,19 @@
 
 
 typedef struct AppTaskUnit{
-
+    TaskFunction_t      pvTaskCode;
+    const char * const  pcName;
+    StackType_t         usStackDepth;
+    void               *pvParameters;
+    UBaseType_t         uxPriority;
+    TaskHandle_t       *pxCreatedTask;
 }AppTaskUnit_t;
 
-typedef struct AppTaskMemory{
 
-}AppTaskMemory_t;
+typedef struct AppTaskUnitInternal{
+    TaskFunction_t     func;
+    void*              param;
+}AppTaskUnitInternal_t;
 
 
 /**
@@ -48,24 +55,28 @@ typedef struct AppTaskMemory{
  * @attention   Do NOT change any value. Use api function instead
  *              Do NOT define in any functions.
 */
-typedef struct AppTask{
+typedef struct AppTaskMgr{
 
-    
+    /* Private -----------------------------------------------------------*/
+    AppTaskUnitInternal_t               *tc_list;
+    u8                                  *tc_list_mask;
+    u8                                   tc_list_mask_len;
+
 
     /* Public ------------------------------------------------------------*/
     u32 (*launch)( void);
     
-    
-    int (*schedule)( const AppTaskUnit_t[] list, size_t nItems );
+    int (*schedule)( AppTaskUnit_t list[], size_t nItems );
     
     int (*report)(void);
-    int (*memory)( AppTaskMemory_t *result);
 
     int (*reset)(void);
-    int (*exit)(int);
+    int (*kill)( TaskHandle_t t, int status);
 
 }AppTask_t;
 
 
+extern AppTask_t g_AppTaskMgr;
 
+#endif
 /************************ (C) COPYRIGHT RandleH *****END OF FILE***************/
