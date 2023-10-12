@@ -25,5 +25,16 @@ typedef volatile u64 vu64;
 #define RH_MAX(a,b)   ((a)>(b)? (a) : (b))
 #define RH_MIN(a,b)   ((a)<(b)? (a) : (b))
 
+
+#if defined ( __GNUC__ ) || (defined (__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)) /* GNU and ARM Compiler 6 compilers */
+#ifndef RH_WEAK
+#define RH_WEAK __attribute__((weak))
+#endif /* __weak */
+#endif /* __GNUC__ || (__ARMCC_VERSION && (__ARMCC_VERSION >= 6010050)) */
+
+#ifndef RH_API
+#define RH_API
+#endif
+
 #endif
 

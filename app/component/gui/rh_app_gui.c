@@ -64,10 +64,14 @@ static int launch_function( void){
     
     
     self->display = lv_disp_create( kBspConst__SCREEN_WIDTH, kBspConst__SCREEN_HEIGHT );
+
+    
     lv_disp_set_draw_buffers( self->display, self->gram[0], self->gram[1], kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM*sizeof(lv_color_t), LV_DISP_RENDER_MODE_PARTIAL);
 
+    
 
-    lv_disp_set_flush_cb( self->display, );
+
+    // lv_disp_set_flush_cb( self->display, );
 
     
 

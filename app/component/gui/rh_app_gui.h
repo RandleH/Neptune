@@ -44,8 +44,7 @@ typedef struct AppGui{
     
     lv_color_t         gram[kAppConst__GUI_NUM_OF_GRAM][kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM];
     lv_disp_t         *display;
-    lv_disp_drv_t      driver;
-    lv_disp_draw_buf_t buf;
+    
 
     
     /* Public ------------------------------------------------------------*/
