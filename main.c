@@ -41,67 +41,6 @@ extern u32 SystemCoreClock;
 
 /* Exported functions --------------------------------------------------------*/
 
-/* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an
-implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
-used by the Idle task. */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
-                                    StackType_t **ppxIdleTaskStackBuffer,
-                                    uint32_t *pulIdleTaskStackSize ){
-    /* If the buffers to be provided to the Idle task are declared inside this
-    function then they must be declared static - otherwise they will be allocated on
-    the stack and so not exists after this function exits. */
-    static StaticTask_t xIdleTaskTCB;
-    static StackType_t uxIdleTaskStack[ configMINIMAL_STACK_SIZE ];
-
-    /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
-    state will be stored. */
-    *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
-
-    /* Pass out the array that will be used as the Idle task's stack. */
-    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
-
-    /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
-    Note that, as the array is necessarily of type StackType_t,
-    configMINIMAL_STACK_SIZE is specified in words, not bytes. */
-    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
-}
-
-/* configSUPPORT_STATIC_ALLOCATION and configUSE_TIMERS are both set to 1, so the
-application must provide an implementation of vApplicationGetTimerTaskMemory()
-to provide the memory that is used by the Timer service task. */
-void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
-                                     StackType_t **ppxTimerTaskStackBuffer,
-                                     uint32_t *pulTimerTaskStackSize ){
-    /* If the buffers to be provided to the Timer task are declared inside this
-    function then they must be declared static - otherwise they will be allocated on
-    the stack and so not exists after this function exits. */
-    static StaticTask_t xTimerTaskTCB;
-    static StackType_t uxTimerTaskStack[ configTIMER_TASK_STACK_DEPTH ];
-
-    /* Pass out a pointer to the StaticTask_t structure in which the Timer
-    task's state will be stored. */
-    *ppxTimerTaskTCBBuffer = &xTimerTaskTCB;
-
-    /* Pass out the array that will be used as the Timer task's stack. */
-    *ppxTimerTaskStackBuffer = uxTimerTaskStack;
-
-    /* Pass out the size of the array pointed to by *ppxTimerTaskStackBuffer.
-    Note that, as the array is necessarily of type StackType_t,
-    configTIMER_TASK_STACK_DEPTH is specified in words, not bytes. */
-    *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
-}
-
-
-
-void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName ){
-
-}
-
-
-void vApplicationMallocFailedHook( void ){
-    rh_cmn__assert( false, "FreeRTOS malloc failed!");
-}
-
 
 
 /**
@@ -134,6 +73,51 @@ void task_blink( void* param){
 }
 
 
+/**
+ * @brief   System Report
+ * @param   param       Call back `printf()`. Must NOT be NULL.
+*/
+void task_report( void* param){
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = 5000;
+     xLastWakeTime = xTaskGetTickCount();
+
+    typedef int (*printf_t)(const char*,...);
+    HeapStats_t report_heap;
+    vPortGetHeapStats( &report_heap);
+    while(1){
+        vTaskDelayUntil( &xLastWakeTime, xFrequency );
+
+
+        ((printf_t)param)( "============================================================\n");
+        ((printf_t)param)( "System Report\n");
+        ((printf_t)param)( "============================================================\n");
+        ((printf_t)param)( "Heap Memory Usage ------------------------------------------\n");
+        ((printf_t)param)( " - Number of Free Memory Blocks:              %ld\tbytes\n", report_heap.xNumberOfFreeBlocks);
+        ((printf_t)param)( " - Minimum Remaining Free Bytes Since Boot:   %ld\tbytes\n", report_heap.xMinimumEverFreeBytesRemaining);
+        ((printf_t)param)( " - Maximum Allocable Bytes:                   %ld\tbytes\n", report_heap.xSizeOfLargestFreeBlockInBytes);
+        ((printf_t)param)( " - Total Remaining Free Bytes:                %ld\tbytes\n", report_heap.xAvailableHeapSpaceInBytes);
+        ((printf_t)param)( " - Total Heap Size:                           %ld\tbytes\n", configTOTAL_HEAP_SIZE);
+        ((printf_t)param)( " - Number of calls to pvPortMalloc()          %ld\t\n", report_heap.xNumberOfSuccessfulAllocations);
+        ((printf_t)param)( " - Number of calls to pvPortFree()            %ld\t\n", report_heap.xNumberOfSuccessfulFrees);
+        ((printf_t)param)( "\n\n");
+
+        ((printf_t)param)( "Task Statistic ---------------------------------------------\n");
+        ((printf_t)param)( " - Total Number of Tasks                      %ld\t\n", uxTaskGetNumberOfTasks());
+        
+        ((printf_t)param)( " -- Task Name:                                %s\n", pcTaskGetName( NULL));
+        ((printf_t)param)( " -- Task Stack Peak Usage:                    %ld/%ld\n", sizeof(StackType_t)*(128-uxTaskGetStackHighWaterMark2( NULL)), 128*sizeof(StackType_t));
+        ((printf_t)param)( "\n\n""\033[0m");
+
+
+        // ulTaskGetIdleRunTimePercent();
+
+        // ulTaskGetRunTimePercent(  )
+        
+    }
+
+    
+}
 
 
 
@@ -172,7 +156,7 @@ void task_init( void *param){
 
         /* Application Start */
         g_AppTrace.launch();
-        g_AppGui.launch();
+        // g_AppGui.launch();
         
         /* Print General Information */
         CmnChipUID_t uid;
@@ -183,7 +167,9 @@ void task_init( void *param){
         g_AppTrace.printf( "CPU Info: AHB Clock Frequency: %ld Hz\r\n", HAL_RCC_GetHCLKFreq());
         g_AppTrace.printf( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
         g_AppTrace.printf( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
-
+        
+        xTaskCreate( task_blink, "Task - LED", 256U, NULL, 30, NULL);
+        xTaskCreate( task_report, "Task - System Report", 256, g_AppTrace.printf, 30, NULL);
         /* Initialization Completed */
         vTaskDelete(NULL);
     }
@@ -204,7 +190,7 @@ int main( int argc, char const *argv[]){
     rh_cmn_clk__set_cpu( kCmnCpuFreq_96MHz);
     rh_cmn_clk__systick_enable( kCmnSystickFreq_1KHz);
 
-    xTaskCreate( task_init, "Init task", 8192U, NULL, 40U, NULL);
+    xTaskCreate( task_init, "Init task", 512U, NULL, 40U, NULL);
     
     vTaskStartScheduler();
 

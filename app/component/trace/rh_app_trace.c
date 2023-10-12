@@ -363,7 +363,7 @@ static u32 launch( void){
     u32 res = 0x00000000;
 
     if( self->task_rx==NULL ){
-        xTaskCreate( task_func__rx, "App Trace - RX", (kAppConst__TRACE_STACK_DEPTH/2), &g_AppTrace, kAppConst__TRACE_PRIORITY, &g_AppTrace.task_rx);
+        // xTaskCreate( task_func__rx, "App Trace - RX", (kAppConst__TRACE_STACK_DEPTH/2), &g_AppTrace, kAppConst__TRACE_PRIORITY, &g_AppTrace.task_rx);
         res |= (NULL==self->task_rx) << 0;
     }
     

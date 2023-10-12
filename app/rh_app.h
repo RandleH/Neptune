@@ -46,7 +46,6 @@ enum AppConst{
     kAppConst__GUI_NUM_OF_GRAM                     = (2),
     kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM           = (240*4),
     kAppConst__GUI_PRIORITY                        = (50)
-
 };
 
 

@@ -60,7 +60,7 @@
 #define configSUPPORT_STATIC_ALLOCATION   1
 #define configSUPPORT_DYNAMIC_ALLOCATION  1
 
-#define configTOTAL_HEAP_SIZE             ((size_t)(64 * 1024))
+#define configTOTAL_HEAP_SIZE             ((size_t)(80 * 1024))
 
 #define configCPU_CLOCK_HZ                (96000000U)
 #define configTICK_RATE_HZ                ((TickType_t)1000)
@@ -106,6 +106,7 @@ to exclude the API function. */
 #define INCLUDE_xEventGroupSetBitFromISR 1
 #define INCLUDE_xTaskGetHandle           1
 #define INCLUDE_uxTaskGetStackHighWaterMark 1
+#define INCLUDE_uxTaskGetStackHighWaterMark2 1
 
 /*------------- CMSIS-RTOS V2 specific defines -----------*/
 /* When using CMSIS-RTOSv2 set configSUPPORT_STATIC_ALLOCATION to 1
