@@ -28,6 +28,10 @@
 #define RH_APP_CFG__TRACE__ENABLE_RX                (true)
 
 #if RH_APP_CFG__DEBUG
+
+#define RH_APP_CFG__TASK_MGR_DEBUG                  (true)
+#define RH_APP_CFG__TRACE_DEBUG                     (true)
+
 # define RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK  (true)
 
 #endif
