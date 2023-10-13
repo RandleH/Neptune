@@ -43,8 +43,10 @@ typedef struct AppTaskUnit{
 
 
 typedef struct AppTaskUnitInternal{
-    TaskFunction_t     func;
-    void*              param;
+    TaskFunction_t      func;
+    void*               param;
+    TaskHandle_t        handle;
+    size_t              depth;
 }AppTaskUnitInternal_t;
 
 
@@ -59,19 +61,18 @@ typedef struct AppTaskMgr{
 
     /* Private -----------------------------------------------------------*/
     AppTaskUnitInternal_t               *tc_list;
-    u8                                  *tc_list_mask;
+    u8                                  *tc_list_mask;              /*!< 0=BUSY; 1=IDLE */
     u8                                   tc_list_mask_len;
 
 
     /* Public ------------------------------------------------------------*/
-    u32 (*launch)( void);
+    int (*launch)( void);
     
-    int (*schedule)( AppTaskUnit_t list[], size_t nItems );
+    int (*create)( AppTaskUnit_t list[], size_t nItems );
     
     int (*report)(void);
 
-    int (*reset)(void);
-    int (*kill)( TaskHandle_t t, int status);
+    int (*kill)( TaskHandle_t t);
 
 }AppTask_t;
 
