@@ -77,6 +77,7 @@ enum CmnConst{
 #include "rh_cmn_gpio.h"
 #include "rh_cmn_assert.h"
 #include "rh_cmn_chip.h"
+#include "rh_cmn_math.h"
 
 #endif
 
