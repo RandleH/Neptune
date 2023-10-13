@@ -50,7 +50,7 @@ static int log_p( const char* fmt, ...){
 
 #if 1
 static int log_f( const char* fmt, ...){
-
+    return 0;
 }
 #else
 #define log_f( fmt, ...)  rh_cmn_disk__fprintf( fmt, __VA_ARG__)
