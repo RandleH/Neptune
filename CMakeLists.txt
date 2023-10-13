@@ -19,7 +19,7 @@ ENDMACRO()
 
 
 # Tool Chain Setup
-set(CMAKE_TOOLCHAIN_FILE                ${CMAKE_SOURCE_DIR}/arm-gcc-toolchain.cmake)
+set(CMAKE_TOOLCHAIN_FILE                ${CMAKE_SOURCE_DIR}/cmake/arm-gcc-toolchain.cmake)
 set(CMAKE_EXPORT_COMPILE_COMMANDS       ON)
 
 # Project Setup
@@ -84,10 +84,10 @@ add_link_options( ${CPU_FLAG})
 #########################################################################################################
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message( STATUS "Target set to debug version.")
-    include( ${PRJ_TOP}/debug.cmake)
+    include( ${PRJ_TOP}/cmake/debug.cmake)
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     message( STATUS "Target set to release.")
-    include( ${PRJ_TOP}/release.cmake)
+    include( ${PRJ_TOP}/cmake/release.cmake)
 endif()
 
 
@@ -114,7 +114,7 @@ target_compile_options ( ${PROJECT_NAME}.elf  PUBLIC      ${CMAKE_CXX_FLAGS} ${C
 target_link_options    ( ${PROJECT_NAME}.elf  PUBLIC      ${LINK_FLAG} ${CPU_FLAG} )
 target_link_libraries( ${PROJECT_NAME}.elf PUBLIC  ${TARGET_LIST})
 
-include( ${PRJ_TOP}/utility.cmake)
+include( ${PRJ_TOP}/cmake/utility.cmake)
 foreach( target ${TARGET_LIST})
     message("================================================================================")
     message( "Library Target property: ${target}")
