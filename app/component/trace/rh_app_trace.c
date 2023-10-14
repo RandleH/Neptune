@@ -273,9 +273,6 @@ static inline void util__transfer_tx( void){
             /* Free shared resource */
             xSemaphoreGive( self->lock_handle);
 
-#if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK
-            self->stack_water_mark = RH_MAX( self->stack_water_mark, uxTaskGetStackHighWaterMark( NULL ));
-#endif /* RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK */
         }
     }
 }

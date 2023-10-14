@@ -81,12 +81,6 @@ typedef struct AppTrace{
     StaticSemaphore_t lock_buffer;
     uint8_t           force_to_clear;
 
-#if RH_APP_CFG__DEBUG
-# if RH_APP_CFG__TRACE__ENABLE_STACK_WATERMARK        
-    size_t            stack_water_mark;
-# endif
-
-#endif
 
 
     /* Public ------------------------------------------------------------*/

@@ -157,6 +157,7 @@ static TestResult_t* var_2( TestResult_t *p, u32 seed){
     g_AppTrace.exit(9);
     
     taskEXIT_CRITICAL();
+    return p;
 }
 
 
