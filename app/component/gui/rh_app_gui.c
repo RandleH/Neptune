@@ -68,15 +68,14 @@ static int launch_function( void){
     
     lv_disp_set_draw_buffers( self->display, self->gram[0], self->gram[1], kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM*sizeof(lv_color_t), LV_DISP_RENDER_MODE_PARTIAL);
 
-    
-
+    #warning "Unimplimented"
 
     // lv_disp_set_flush_cb( self->display, );
 
     
 
     if( self->task_refreash==NULL ){
-        xTaskCreate( task_func__refreash, "App Gui - Refreash", kAppConst__GUI_STACK_DEPTH, self, kAppConst__GUI_PRIORITY, self->task_refreash);
+        xTaskCreate( task_func__refreash, "App Gui - Refreash", kAppConst__GUI_STACK_DEPTH, self, kAppConst__GUI_PRIORITY, &self->task_refreash);
         res |= (NULL==self->task_refreash) << 0;
     }
     
