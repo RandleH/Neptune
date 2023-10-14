@@ -45,10 +45,13 @@ typedef struct AppGui{
     lv_color_t         gram[kAppConst__GUI_NUM_OF_GRAM][kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM];
     lv_disp_t         *display;
     
-
+    bool               isInitialized;
     
     /* Public ------------------------------------------------------------*/
-    int  (*launch)( void);
+    AppTaskUnit_t   *launch_list;
+    size_t           launch_list_len;
+
+
     void (*yeild)( TaskHandle_t from_whom);
     int  (*request)( TaskHandle_t from_whom );
     void (*halt)( void);

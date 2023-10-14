@@ -28,9 +28,34 @@
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 #define self                                (&g_AppGui)
+
+
 /* Private macro -------------------------------------------------------------*/
-/* Private variables ---------------------------------------------------------*/
+
 /* Private function prototypes -----------------------------------------------*/
+static void task_func__refreash( void* param);
+static void task_func__init( void* param);
+static void flush_cb(struct _lv_display_t *disp, const lv_area_t *area, uint8_t *px_map);
+
+
+/* Private variables ---------------------------------------------------------*/
+static AppTaskUnit_t   launch_list[] = {
+    {
+        .pcName = "GUI Refreash Task",
+        .pvParameters = NULL,
+        .pvTaskCode = task_func__refreash,
+        .usStackDepth = kAppConst__GUI_STACK_DEPTH,
+        .uxPriority = kAppConst__GUI_PRIORITY
+    },
+    {
+        .pcName = "GUI Init Task",
+        .pvParameters = NULL,
+        .pvTaskCode = task_func__init,
+        .usStackDepth = 512U,
+        .uxPriority = kAppConst__GUI_PRIORITY+1
+    }
+};
+
 /* Private functions ---------------------------------------------------------*/
 static void task_func__refreash( void* param){
     TickType_t xLastWakeTime;
@@ -47,44 +72,47 @@ static void task_func__refreash( void* param){
     
 }
 
-static void flush_cb(lv_disp_t * disp, const lv_area_t * area, lv_color_t * buf){
+static void task_func__init( void* param){
+    /* Initialize LVGL Library */
+    lv_init();
     
+    self->display = lv_disp_create( kBspConst__SCREEN_WIDTH, kBspConst__SCREEN_HEIGHT );
+    lv_disp_set_draw_buffers( self->display, self->gram[0], self->gram[1], kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM*sizeof(u16),LV_DISP_RENDER_MODE_PARTIAL);
+    
+    lv_disp_set_flush_cb( self->display, flush_cb);
+}
+
+
+static void flush_cb(struct _lv_display_t *disp, const lv_area_t *area, uint8_t *px_map){
+    /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one
+     *`put_px` is just an example, it needs to be implemented by you.*/
+    // int32_t x, y;
+    // for(y = area->y1; y <= area->y2; y++) {
+    //     for(x = area->x1; x <= area->x2; x++) {
+    //         put_px(x, y, *buf);
+    //         buf++;
+    //     }
+    // }
+
+    /**
+     * @note    Use DMA tranmission to boost refreash rate
+    */
+    rh_bsp_screen__flush( (BspScreenPixel_t *)px_map, area->x1, area->y1, area->x2, area->y2);
+
+    /* IMPORTANT!!!
+     * Inform LVGL that you are ready with the flushing and buf is not used anymore*/
+    lv_disp_flush_ready(disp);
 }
 
 
 /* Functions -----------------------------------------------------------------*/
-static int launch_function( void){
-    u32 res = 0x00000000;
-    
-    /* Initialize LVGL Library */
-    lv_init();
-    
-    
-    __asm("nop");
-    
-    
-    self->display = lv_disp_create( kBspConst__SCREEN_WIDTH, kBspConst__SCREEN_HEIGHT );
-
-    
-    lv_disp_set_draw_buffers( self->display, self->gram[0], self->gram[1], kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM*sizeof(lv_color_t), LV_DISP_RENDER_MODE_PARTIAL);
-
-    #warning "Unimplimented"
-
-    // lv_disp_set_flush_cb( self->display, );
-
-    
-
-    if( self->task_refreash==NULL ){
-        xTaskCreate( task_func__refreash, "App Gui - Refreash", kAppConst__GUI_STACK_DEPTH, self, kAppConst__GUI_PRIORITY, &self->task_refreash);
-        res |= (NULL==self->task_refreash) << 0;
-    }
-    
-    return res;
-}
 
 
+
+/* Exported Handler ----------------------------------------------------------*/
 AppGui_t g_AppGui = {
-    .launch = launch_function,
+    .launch_list = launch_list,
+    .launch_list_len = sizeof(launch_list)/sizeof(*launch_list)
 };
 
 
