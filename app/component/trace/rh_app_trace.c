@@ -79,8 +79,11 @@ typedef struct SlotInfo SlotInfo_t;
 
 
 /* Private function prototypes -----------------------------------------------*/
-static size_t util__get_buffer_remaining_byte( void);
-static u8   util__get_buffer_remaining_slot( void);
+static size_t util__get_num_of_busy_bytes( void);
+static u8     util__get_num_of_busy_slots( void);
+static size_t util__get_num_of_idle_bytes( void);
+static u8     util__get_num_of_idle_slots( void);
+
 static void util__adjust_priority_task_tx( void);
 static void util__get_next_available( size_t required_length, SlotInfo_t *return_result);
 static void util__push_back_node( u32 idx);
@@ -94,9 +97,8 @@ static void task_func__tx( void* ptr);
 static void task_func__rx( void* ptr);
 
 
-static u32 launch( void);
-static int printf_func( const char *fmt, ...);
-static int main_function( int argc, const char*argv[]);
+static int launch_function( void);
+static int printf_function( const char *fmt, ...);
 static int exit_function( int);
 
 
@@ -107,7 +109,7 @@ static int exit_function( int);
 /**
  * 
 */
-static size_t util__get_buffer_remaining_byte( void){
+static inline size_t util__get_num_of_busy_bytes( void){
     if( IS_EMPTY_LL(self) ){
         return (1<<(kAppConst__TRACE_MESSAGE_BUFFER_SIZE_POW_LEVEL));
     }
@@ -118,7 +120,7 @@ static size_t util__get_buffer_remaining_byte( void){
      * @param   b  Idle buffer slot counts := 32-get_buffer_usage()
      * @retval  ans := a + PER_BUFFER_SIZE * b
     */
-    return (size_t)((PER_BUFFER_SIZE<<5) + PER_BUFFER_SIZE - PER_BUFFER_SIZE*util__get_buffer_remaining_slot() - self->buffer.anchor.pEnd->len);
+    return (size_t)((PER_BUFFER_SIZE<<5) + PER_BUFFER_SIZE - PER_BUFFER_SIZE*util__get_num_of_busy_slots() - self->buffer.anchor.pEnd->len);
 }
 
 /**
@@ -127,18 +129,28 @@ static size_t util__get_buffer_remaining_byte( void){
  *              Assertion may oaccurs when return value larger than 32.
  * @return      Return buffer usage <=32
 */
-static u8 util__get_buffer_remaining_slot( void){
+static inline u8 util__get_num_of_busy_slots( void){
     u32 value = self->buffer.mask_tx & self->buffer.mask_rx;
     value = ( value & 0x55555555 ) + ( (value >>1)  & 0x55555555 );
     value = ( value & 0x33333333 ) + ( (value >>2)  & 0x33333333 );
     value = ( value & 0x0f0f0f0f ) + ( (value >>4)  & 0x0f0f0f0f );
     value = ( value & 0x00ff00ff ) + ( (value >>8)  & 0x00ff00ff );
     value = ( value & 0x0000ffff ) + ( (value >>16) & 0x0000ffff );
+    
     rh_cmn__assert( value<=32, "Algorithm error. \"uint32_t\" value will have 32 bitset at most ");
 
     /* `value` indicates how many '1' in the mask, where '1' means idle buffer */
     return 32-value;
 }
+
+static inline size_t util__get_num_of_idle_bytes( void){
+    return PER_BUFFER_SIZE*32 - util__get_num_of_busy_bytes();
+}
+
+static inline u8 util__get_num_of_idle_slots( void){
+    return 32 - util__get_num_of_busy_slots();
+}
+
 
 /**
  * @brief       Utility function - Adjust priority for transimission task
@@ -148,7 +160,7 @@ static u8 util__get_buffer_remaining_slot( void){
  * @return      (none)
 */
 static void util__adjust_priority_task_tx( void){
-    u8 usage = util__get_buffer_remaining_slot();
+    u8 usage = util__get_num_of_busy_slots();
     if( usage>30 ){
         /* Immediately clear buffer */
         self->force_to_clear = true;
@@ -192,12 +204,12 @@ static void util__get_next_available( size_t required_length, SlotInfo_t *return
             }
             rh_cmn__assert( return_result->idx<32, "Impossible.");
         }else{
-            if( required_length <= util__get_buffer_remaining_byte() ){
+            if( required_length <= util__get_num_of_busy_bytes() ){
                 return_result->status = kSlotStatusCompact;
 
                 /**
-                 * @note Either condition will result in same solution exentually in `printf_func()`
-                 * @note If current slot is full, and returned result designats this full slot index, then it will result a passing length of `0` of copying item in `printf_func()`. Error may or may NOT occur. Therefore here to take a further check to avoid that condition.
+                 * @note Either condition will result in same solution exentually in `printf_function()`
+                 * @note If current slot is full, and returned result designats this full slot index, then it will result a passing length of `0` of copying item in `printf_function()`. Error may or may NOT occur. Therefore here to take a further check to avoid that condition.
                 */
                 if( self->buffer.anchor.pEnd->len==PER_BUFFER_SIZE ){
                     /* Assign a new slot */
@@ -350,13 +362,14 @@ static inline void util__pop_front_node( u32 idx){
 
 /**
  * @brief       Initialize required memory and launch threads.
+ * @note        This function MUST run before all api calls
  * @return      Return 0 if success
  *              Return value should be interreted bitwisely.
  *              Bit[0] --> Receive Thread launch failed. Null handle return.
  *              Bit[1] --> Transmit Thread launch failed. Null handle return.
  *                       
 */
-static u32 launch( void){
+static int launch_function( void){
     u32 res = 0x00000000;
 
     if( self->task_rx==NULL ){
@@ -385,7 +398,7 @@ static u32 launch( void){
  *              Return 1 if data partially send due to the buffer overflow
  *              Return 2 if failed
 */
-static int printf_func( const char *fmt, ...){
+static int printf_function( const char *fmt, ...){
     if( self->task_tx==NULL || fmt==NULL ){
         /* App uninitialized */
         return 2;
@@ -447,7 +460,7 @@ static int printf_func( const char *fmt, ...){
                 /* Check if stack will be overflowed */
                 if( slot.status==kSlotStatusPartial ){
                     /* Required length is too long. Use the remaining buffer in bytes instead */
-                    len = util__get_buffer_remaining_byte();
+                    len = util__get_num_of_busy_bytes();
                 }
                 u32 remaining_stack_in_bytes = uxTaskGetStackHighWaterMark(NULL)<<2;
                 if( remaining_stack_in_bytes>=len ){
@@ -569,16 +582,6 @@ static int exit_function( int status){
     return status;
 }
 
-/**
- * @brief       Demo function.
- * @param       argc    Num of arguments
- * @param       argv    Array of arguments in string
- * @return      Always return 0
-*/
-static int main_function( int argc, const char*argv[]){
-
-    return 0;
-}
 
 
 /**
@@ -609,9 +612,8 @@ AppTrace_t g_AppTrace = {
             .pEnd=(AppTraceUnit_t*)(&self->buffer.anchor)
         }
     },
-    .launch      = launch,
-    .printf      = printf_func,
-    .main        = main_function,
+    .launch      = launch_function,
+    .printf      = printf_function,
     .purge       = purge_function,
     .exit        = exit_function
 };

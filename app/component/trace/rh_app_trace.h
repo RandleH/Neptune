@@ -84,8 +84,8 @@ typedef struct AppTrace{
 
 
     /* Public ------------------------------------------------------------*/
-    u32 (*launch)( void);
-    int (*main)( int argc, const char*argv[]);
+    int (*launch)( void);
+    
     int (*printf)( const char *fmt, ...);
     int (*purge)(void);
     int (*exit)(int);
