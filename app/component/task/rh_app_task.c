@@ -33,15 +33,15 @@
 
 /* Private define ------------------------------------------------------------*/
 #define self                                (&g_AppTaskMgr)
-
-
-
 #define IS_BUSY_AT( client_ptr, mask_idx, mask_bit)            (0==(((client_ptr)->tc_list_mask[(mask_idx)]) & (1<<(mask_bit))))
+#define TASK_LIST_LENGTH( client_ptr)                          ((unsigned)((client_ptr)->tc_list_mask_len<<3))
+#define TASK_LIST_LENGTH_IN_BYTES( client_ptr)                 ((unsigned)(TASK_LIST_LENGTH((client_ptr))*sizeof(self->tc_list[0])))
 
-#define TASK_LIST_LENGTH( client_ptr)              ((unsigned)((client_ptr)->tc_list_mask_len<<3))
-#define TASK_LIST_LENGTH_IN_BYTES( client_ptr)     ((unsigned)(TASK_LIST_LENGTH((client_ptr))*sizeof(self->tc_list[0])))
-
-
+/**
+ * @brief   Utility Function: Get num of available buffer slots to store task information
+ * @note    Returned answer should NEVER exceed `self->tc_list_mask_len * 8`. Since that is the maximum bits count that can indicated idle or busy.
+ * @return  Return answer
+*/
 static u32 inline util__get_num_of_empty_task( void){
     u32 res = 0;
     for( size_t i=0; i<self->tc_list_mask_len; ++i){
@@ -50,6 +50,13 @@ static u32 inline util__get_num_of_empty_task( void){
     return res;
 }
 
+
+/**
+ * @brief   Internal Function: All task created by `TaskMgr` will call this before entering
+ * @param   pTaskUnit   This pointer should cast to `AppTaskUnitInternal_t`
+ * @note    `pTaskUnit->func` is the user task code callback. `pTaskUnit->param` is the parameter passed through the callback.
+ * @note    If a task created by TaskMgr. Its task code can run without infinite loop. It will result in a task delete.
+*/
 static void task_main_entrance( void* pTaskUnit){
 
     rh_cmn__assert( pTaskUnit!=NULL, "Invalid Task Entrance Unit");
@@ -60,7 +67,11 @@ static void task_main_entrance( void* pTaskUnit){
 }
 
 
-
+/**
+ * @brief   External Function: `TaskMgr` launch function.
+ * @note    `launch()` should run before all other external function was called
+ * @retval  Return 0 if success   
+*/
 static int launch_function( void){
     self->tc_list_mask_len = 1;
     self->tc_list          = (AppTaskUnitInternal_t*)pvPortMalloc(((self->tc_list_mask_len)*8*sizeof(AppTaskUnitInternal_t)));
@@ -76,6 +87,12 @@ static int launch_function( void){
     return 0;
 }
 
+/**
+ * @brief   External Function: Create a list of tasks.
+ * @note    This function may cause memory reallocation inside the `TaskMgr`
+ * @note    This function will change the `pxCreatedTask` for each iterm inside the `list[]` which is the task handle. User can decide whether dump or save it.
+ * @retval  Return 0 if success.
+*/
 static int create_function( AppTaskUnit_t list[], size_t nItems ){
     u32 num_of_available = util__get_num_of_empty_task();
     u32 num_to_allocate  = num_of_available<nItems ? (((nItems-num_of_available)/8)+ (0!=((nItems-num_of_available)%8)) ) : 0;
@@ -111,6 +128,24 @@ static int create_function( AppTaskUnit_t list[], size_t nItems ){
 }
 
 
+/**
+ * @brief   External Function: Generate human readable report of all tasks created by `TaskMgr`
+ * @note    This function will call `AppTrace` application to help export the message
+ * @note    `RH_APP_CFG__TASK_MGR_DEBUG` MUST set to `1`
+ * @retval  Return 0 if success.
+*/
+#if defined (RH_APP_CFG__TASK_MGR_DEBUG) && (RH_APP_CFG__TASK_MGR_DEBUG)==(true)
+static int report_function( void){
+    return 0;
+}
+#endif
+
+
+/**
+ * @brief   External Function: Given a task handle, kill the task.
+ * @param   t   Task handle
+ * @retval  Return 0 if success
+*/
 static int kill_function( TaskHandle_t t){
     u32 mask_idx=0, mask_bit=0;
     while( mask_idx<self->tc_list_mask_len ){
@@ -151,10 +186,11 @@ static int kill_function( TaskHandle_t t){
 
 
 
-
+/* Exported variable ---------------------------------------------------------*/
 AppTask_t g_AppTaskMgr = {
     .launch = launch_function,
     .create = create_function,
+    .report = report_function,
     .kill   = kill_function
 };
 

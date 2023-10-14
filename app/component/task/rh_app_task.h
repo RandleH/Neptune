@@ -66,12 +66,33 @@ typedef struct AppTaskMgr{
 
 
     /* Public ------------------------------------------------------------*/
+    /**
+     * @brief   External Function: `TaskMgr` launch function.
+     * @note    `launch()` should run before all other external function was called
+     * @retval  Return 0 if success   
+    */
     int (*launch)( void);
-    
+
+    /**
+     * @brief   External Function: Create a list of tasks.
+     * @note    This function may cause memory reallocation inside the `TaskMgr`
+     * @retval  Return 0 if success.
+    */
     int (*create)( AppTaskUnit_t list[], size_t nItems );
     
+    /**
+     * @brief   External Function: Generate human readable report of all tasks created by `TaskMgr`
+     * @note    This function will call `AppTrace` application to help export the message
+     * @note    `RH_APP_CFG__TASK_MGR_DEBUG` MUST set to `1`
+     * @retval  Return 0 if success.
+    */
     int (*report)(void);
 
+    /**
+     * @brief   External Function: Given a task handle, kill the task.
+     * @param   t   Task handle
+     * @retval  Return 0 if success
+    */
     int (*kill)( TaskHandle_t t);
 
 }AppTask_t;
