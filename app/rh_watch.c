@@ -139,6 +139,9 @@ static void entrance_function( void* param){
     };
 
     watch.app.taskmgr->create( list, sizeof(list)/sizeof(*list));
+    
+    /* Use Task Manager to launch user application */
+    watch.app.taskmgr->create( watch.app.gui->launch_list, watch.app.gui->launch_list_len);
 
     vTaskDelete(NULL);
 }
@@ -152,6 +155,7 @@ WatchTopStructure_t watch = {
     .entrance = entrance_function,
     .app = {
         .logger   = &g_AppTrace,
-        .taskmgr  = &g_AppTaskMgr
+        .taskmgr  = &g_AppTaskMgr,
+        .gui      = &g_AppGui
     },
 };
