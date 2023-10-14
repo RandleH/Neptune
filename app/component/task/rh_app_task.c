@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include "rh_app_trace.h"
 #include "rh_app_task.h"
+#include "rh_watch.h"
 #include "rh_cmn.h"
 
 
@@ -37,12 +38,24 @@
 #define TASK_LIST_LENGTH( client_ptr)                          ((unsigned)((client_ptr)->tc_list_mask_len<<3))
 #define TASK_LIST_LENGTH_IN_BYTES( client_ptr)                 ((unsigned)(TASK_LIST_LENGTH((client_ptr))*sizeof(self->tc_list[0])))
 
+
+
+
+static u32 util__get_num_of_busy_slots( void);
+static u32 util__get_num_of_idle_slots( void);
+
+
+
 /**
  * @brief   Utility Function: Get num of available buffer slots to store task information
  * @note    Returned answer should NEVER exceed `self->tc_list_mask_len * 8`. Since that is the maximum bits count that can indicated idle or busy.
  * @return  Return answer
 */
-static u32 inline util__get_num_of_empty_task( void){
+static u32 inline util__get_num_of_busy_slots( void){
+    return (self->tc_list_mask_len<<3) - util__get_num_of_idle_slots();
+}
+
+static u32 inline util__get_num_of_idle_slots( void){
     u32 res = 0;
     for( size_t i=0; i<self->tc_list_mask_len; ++i){
         res += rh_cmn_math__numOf1_8bits( self->tc_list_mask[i] );
@@ -94,7 +107,7 @@ static int launch_function( void){
  * @retval  Return 0 if success.
 */
 static int create_function( AppTaskUnit_t list[], size_t nItems ){
-    u32 num_of_available = util__get_num_of_empty_task();
+    u32 num_of_available = util__get_num_of_idle_slots();
     u32 num_to_allocate  = num_of_available<nItems ? (((nItems-num_of_available)/8)+ (0!=((nItems-num_of_available)%8)) ) : 0;
 
     if( num_to_allocate!=0 ){
@@ -136,6 +149,49 @@ static int create_function( AppTaskUnit_t list[], size_t nItems ){
 */
 #if defined (RH_APP_CFG__TASK_MGR_DEBUG) && (RH_APP_CFG__TASK_MGR_DEBUG)==(true)
 static int report_function( void){
+    HeapStats_t report_heap;
+    vPortGetHeapStats( &report_heap);
+    watch.app.logger->printf( "============================================================\n");
+    watch.app.logger->printf( "Application Task Manager Report\n");
+    watch.app.logger->printf( "============================================================\n");
+    watch.app.logger->printf( "Heap Memory Usage ------------------------------------------\n");
+    watch.app.logger->printf( " - Number of Free Memory Blocks:              %ld\tbytes\n", report_heap.xNumberOfFreeBlocks);
+    watch.app.logger->printf( " - Minimum Remaining Free Bytes Since Boot:   %ld\tbytes\n", report_heap.xMinimumEverFreeBytesRemaining);
+    watch.app.logger->printf( " - Maximum Allocable Bytes:                   %ld\tbytes\n", report_heap.xSizeOfLargestFreeBlockInBytes);
+    watch.app.logger->printf( " - Total Remaining Free Bytes:                %ld\tbytes\n", report_heap.xAvailableHeapSpaceInBytes);
+    watch.app.logger->printf( " - Total Heap Size:                           %ld\tbytes\n", configTOTAL_HEAP_SIZE);
+    watch.app.logger->printf( " - Number of calls to pvPortMalloc()          %ld\t\n", report_heap.xNumberOfSuccessfulAllocations);
+    watch.app.logger->printf( " - Number of calls to pvPortFree()            %ld\t\n", report_heap.xNumberOfSuccessfulFrees);
+    watch.app.logger->printf( "\n\n");
+
+    watch.app.logger->printf( "Task Statistic ---------------------------------------------\n");
+    watch.app.logger->printf( " - Total Number of Tasks                      %ld\t\n", uxTaskGetNumberOfTasks());
+    
+
+    for( size_t i=0,mask_idx=0,mask_bit=0; i<TASK_LIST_LENGTH(self); ++i){   
+        while( mask_idx<self->tc_list_mask_len ){
+            while( !IS_BUSY_AT( self, mask_idx, mask_bit) && mask_bit<8){
+                ++mask_bit;
+            }
+            if( mask_bit!=8 ){
+                break;
+            }
+            mask_bit = 0;
+            ++mask_idx;
+        }
+
+        TaskHandle_t handle = self->tc_list[ (mask_idx*8)+mask_bit ].handle;
+
+        watch.app.logger->printf( " -- Task Name:                                %s\n",\
+            pcTaskGetName( handle));
+        watch.app.logger->printf( " -- Task Stack Peak Usage:                    %ld/%ld\n",\
+            self->tc_list[ (mask_idx*8)+mask_bit ].depth-uxTaskGetStackHighWaterMark2(handle),\
+            self->tc_list[ (mask_idx*8)+mask_bit ].depth);
+
+    }
+
+    watch.app.logger->printf( "\n\n""\033[0m");
+
     return 0;
 }
 #endif
