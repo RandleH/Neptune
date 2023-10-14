@@ -56,6 +56,7 @@ enum AppConst{
 /* Includes ------------------------------------------------------------------*/
 #include "rh_app_trace.h"
 #include "rh_app_utility.h"
+#include "rh_app_task.h"
 #include "rh_app_time.h"
 #include "rh_app_gui.h"
 

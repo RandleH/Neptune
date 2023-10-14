@@ -70,13 +70,13 @@ static int launch_function( void){
         return 1;
     }
 
-    memset( self->tc_list,      0, ((self->tc_list_mask_len)*8*sizeof(AppTaskUnitInternal_t)));
-    memset( self->tc_list_mask, 0, self->tc_list_mask_len);
+    memset( self->tc_list,      0x00, ((self->tc_list_mask_len)*8*sizeof(AppTaskUnitInternal_t)));
+    memset( self->tc_list_mask, 0xff, self->tc_list_mask_len);
     
     return 0;
 }
 
-static int create( AppTaskUnit_t list[], size_t nItems ){
+static int create_function( AppTaskUnit_t list[], size_t nItems ){
     u32 num_of_available = util__get_num_of_empty_task();
     u32 num_to_allocate  = num_of_available<nItems ? (((nItems-num_of_available)/8)+ (0!=((nItems-num_of_available)%8)) ) : 0;
 
@@ -104,13 +104,14 @@ static int create( AppTaskUnit_t list[], size_t nItems ){
         xTaskCreate( task_main_entrance, list[i].pcName, list[i].usStackDepth, &self->tc_list[ (mask_idx*8)+mask_bit ], list[i].uxPriority, list[i].pxCreatedTask);
 
         self->tc_list[ (mask_idx*8)+mask_bit ].handle = *list[i].pxCreatedTask;
+        self->tc_list_mask[mask_idx] &= (u8)(~(1<<mask_bit));
+        ++mask_bit;
     }
+    return 0;
 }
 
-static int kill_function( TaskHandle_t t){
-#ifdef RH_APP_DEBUG
 
-#endif
+static int kill_function( TaskHandle_t t){
     u32 mask_idx=0, mask_bit=0;
     while( mask_idx<self->tc_list_mask_len ){
         while( !IS_BUSY_AT( self, mask_idx, mask_bit) && mask_bit<8){
@@ -132,7 +133,7 @@ static int kill_function( TaskHandle_t t){
     g_AppTrace.printf( "Task Killed:                   %s\n",\
         pcTaskGetName(self->tc_list[ (mask_idx*8)+mask_bit ].handle));
     g_AppTrace.printf( "Task Memory History Usage:     %d/%d\t bytes\n",\
-        pcTaskGetName(self->tc_list[ (mask_idx*8)+mask_bit ].handle),\ 
+        pcTaskGetName(self->tc_list[ (mask_idx*8)+mask_bit ].handle),\
         sizeof(StackType_t)*(self->tc_list[ (mask_idx*8)+mask_bit ].depth-uxTaskGetStackHighWaterMark2(self->tc_list[ (mask_idx*8)+mask_bit ].handle)),\
         sizeof(StackType_t)*self->tc_list[ (mask_idx*8)+mask_bit ].depth);
     
@@ -143,18 +144,17 @@ static int kill_function( TaskHandle_t t){
     self->tc_list[ (mask_idx*8)+mask_bit ].param  = NULL;
     self->tc_list[ (mask_idx*8)+mask_bit ].depth  = 0;
     
-    self->tc_list_mask[mask_idx] &= (u8)(~(1<<mask_bit));
+    self->tc_list_mask[mask_idx] |= (u8)((1<<mask_bit));
     vTaskDelete(t);
+    return 0;
 }
 
-static int exit_function( int status){
-    
-}
 
 
 
 AppTask_t g_AppTaskMgr = {
     .launch = launch_function,
+    .create = create_function,
     .kill   = kill_function
 };
 
