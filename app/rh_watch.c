@@ -10,70 +10,32 @@
  * @brief   LED Blink Task
  * @param    param cast to `AppLed_t *` aka. `struct AppLed *`
 */
-void task_blink( void* param){
-    static u8 cnt = 10;
-    bool flag = true;
-    while(1){
-        vTaskDelay(400);
+// void task_blink( void* param){
+//     static u8 cnt = 10;
+//     bool flag = true;
+//     while(1){
+//         vTaskDelay(400);
         
-        HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        g_AppTrace.printf( "LED: Turn on\r\n");
+//         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
+//         g_AppTrace.printf( "LED: Turn on\r\n");
         
-        vTaskDelay(400);
+//         vTaskDelay(400);
         
-        HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-        g_AppTrace.printf( "LED: Turn off\r\n");
+//         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
+//         g_AppTrace.printf( "LED: Turn off\r\n");
     
-        if( cnt==0){
-            if(flag==true){
-                rh_cmn_clk__mco_disable();
-                flag = false;
-            }
-        }else{
-            --cnt;
-        }
-    }
-}
+//         if( cnt==0){
+//             if(flag==true){
+//                 rh_cmn_clk__mco_disable();
+//                 flag = false;
+//             }
+//         }else{
+//             --cnt;
+//         }
+//     }
+// }
 
-/**
- * @brief   System Report
- * @param   param       Call back `printf()`. Must NOT be NULL.
-*/
-void task_report( void* param){
-    TickType_t xLastWakeTime;
-    const TickType_t xFrequency = 5000;
-    xLastWakeTime = xTaskGetTickCount();
 
-    HeapStats_t report_heap;
-    vPortGetHeapStats( &report_heap);
-    while(1){
-        vTaskDelayUntil( &xLastWakeTime, xFrequency );
-
-        watch.app.logger->printf( "============================================================\n");
-        watch.app.logger->printf( "System Report\n");
-        watch.app.logger->printf( "============================================================\n");
-        watch.app.logger->printf( "Heap Memory Usage ------------------------------------------\n");
-        watch.app.logger->printf( " - Number of Free Memory Blocks:              %ld\tbytes\n", report_heap.xNumberOfFreeBlocks);
-        watch.app.logger->printf( " - Minimum Remaining Free Bytes Since Boot:   %ld\tbytes\n", report_heap.xMinimumEverFreeBytesRemaining);
-        watch.app.logger->printf( " - Maximum Allocable Bytes:                   %ld\tbytes\n", report_heap.xSizeOfLargestFreeBlockInBytes);
-        watch.app.logger->printf( " - Total Remaining Free Bytes:                %ld\tbytes\n", report_heap.xAvailableHeapSpaceInBytes);
-        watch.app.logger->printf( " - Total Heap Size:                           %ld\tbytes\n", configTOTAL_HEAP_SIZE);
-        watch.app.logger->printf( " - Number of calls to pvPortMalloc()          %ld\t\n", report_heap.xNumberOfSuccessfulAllocations);
-        watch.app.logger->printf( " - Number of calls to pvPortFree()            %ld\t\n", report_heap.xNumberOfSuccessfulFrees);
-        watch.app.logger->printf( "\n\n");
-
-        watch.app.logger->printf( "Task Statistic ---------------------------------------------\n");
-        watch.app.logger->printf( " - Total Number of Tasks                      %ld\t\n", uxTaskGetNumberOfTasks());
-        
-        watch.app.logger->printf( " -- Task Name:                                %s\n", pcTaskGetName( NULL));
-        watch.app.logger->printf( " -- Task Stack Peak Usage:                    %ld/%ld\n", sizeof(StackType_t)*(128-uxTaskGetStackHighWaterMark2( NULL)), 128*sizeof(StackType_t));
-        watch.app.logger->printf( "\n\n""\033[0m");
-
-        // ulTaskGetIdleRunTimePercent();
-        // ulTaskGetRunTimePercent(  )
-        
-    }   
-}
 
 
 
@@ -109,6 +71,7 @@ static void entrance_function( void* param){
     /* System Application Initialization */
     watch.app.taskmgr->launch();
     watch.app.logger->launch();
+    watch.app.logger->cache_mode(false);
 
     /* Print General Information */
     CmnChipUID_t uid;
@@ -120,27 +83,7 @@ static void entrance_function( void* param){
     watch.app.logger->printf( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
     watch.app.logger->printf( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
 
-    /* User Application */
-    AppTaskUnit_t list[] = {
-        {
-            .pcName       = "LED",
-            .pvParameters = NULL,
-            .pvTaskCode   = task_blink,
-            .usStackDepth = 512,
-            .uxPriority   = 30
-        },
-        {
-            .pcName       = "Report",
-            .pvParameters = NULL,
-            .pvTaskCode   = task_report,
-            .usStackDepth = 256,
-            .uxPriority   = 30
-        }
-    };
-
-    watch.app.taskmgr->create( list, sizeof(list)/sizeof(*list));
-    
-    /* Use Task Manager to launch user application */
+    /* User Application - Use Task Manager to launch user application */
     watch.app.taskmgr->create( watch.app.gui->launch_list, watch.app.gui->launch_list_len);
 
     vTaskDelete(NULL);
