@@ -57,6 +57,11 @@ typedef struct AppTraceUnitAnchor{
 }AppTraceUnitAnchor_t;
 
 
+enum AppTraceOutClient{
+    kAppTraceOutClient__usart,          /*!< Output message throught usart port */
+    kAppTraceOutClient__null            /*!< No output */
+};
+
 
 /**
  * @brief       Application Super Structure
@@ -80,12 +85,13 @@ typedef struct AppTrace{
     SemaphoreHandle_t lock_handle;
     StaticSemaphore_t lock_buffer;
     uint8_t           force_to_clear;
-
+    uint8_t           isCacheMode;
 
 
     /* Public ------------------------------------------------------------*/
     int (*launch)( void);
     
+    void (*cache_mode)( bool cmd);
     int (*printf)( const char *fmt, ...);
     int (*purge)(void);
     int (*exit)(int);

@@ -535,11 +535,12 @@ static int printf_function( const char *fmt, ...){
     }
 
     if( ret==RET_OK ){
-        /* Trigger to send message through hardware */
-        xTaskNotifyGive( self->task_tx);
-
-        /* Adjust priority when necessary */
-        util__adjust_priority_task_tx();
+        if( self->isCacheMode==false){
+            /* Trigger to send message through hardware */
+            xTaskNotifyGive( self->task_tx);
+            /* Adjust priority when necessary */
+            util__adjust_priority_task_tx();
+        }
     }
     
     // return ret;
@@ -547,6 +548,21 @@ static int printf_function( const char *fmt, ...){
 } 
 
 
+static void cache_mode_function( bool cmd){
+    /* Request access to shared resource */
+    if( xSemaphoreTake( self->lock_handle, 50) ){
+
+        if( cmd==true && self->isCacheMode==false){
+            /* Trigger to send message through hardware */
+            xTaskNotifyGive( self->task_tx);
+        }
+
+
+        self->isCacheMode = (cmd!=false);
+        /* Free shared resource */
+        xSemaphoreGive( self->lock_handle);
+    }
+}
 
 /**
  * @brief       Application exit function
@@ -613,6 +629,7 @@ AppTrace_t g_AppTrace = {
         }
     },
     .launch      = launch_function,
+    .cache_mode  = cache_mode_function,
     .printf      = printf_function,
     .purge       = purge_function,
     .exit        = exit_function
