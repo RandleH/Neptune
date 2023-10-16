@@ -36,5 +36,20 @@ typedef volatile u64 vu64;
 #define RH_API
 #endif
 
+#ifndef RH_NORETURN
+#define RH_NORETURN
+#endif
+
+#ifndef RH_PERIODIC
+#define RH_PERIODIC
+#endif
+
+
+#ifndef RH_ONETIME
+#define RH_ONETIME
+#endif
+
+
+
 #endif
 
