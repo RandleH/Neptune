@@ -49,7 +49,14 @@ enum AppConst{
     kAppConst__GUI_FRAME_RATE_MS                   = (10),
     kAppConst__GUI_NUM_OF_GRAM                     = (2),
     kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM           = (240*4),
-    kAppConst__GUI_PRIORITY                        = (50)
+    kAppConst__GUI_PRIORITY                        = (50),
+
+
+    kAppConst__PRIORITY_VERY_IMPORTANT             = (50),
+    kAppConst__PRIORITY_IMPORTANT                  = (40),
+    kAppConst__PRIORITY_INTERMEDIATE               = (30),
+    kAppConst__PRIORITY_NORMAL                     = (20),
+    kAppConst__PRIORITY_DOCUMENTATION              = (5)
 };
 
 

@@ -45,14 +45,14 @@ static AppTaskUnit_t   launch_list[] = {
         .pvParameters = NULL,
         .pvTaskCode = task_func__refreash,
         .usStackDepth = kAppConst__GUI_STACK_DEPTH,
-        .uxPriority = kAppConst__GUI_PRIORITY
+        .uxPriority = kAppConst__PRIORITY_VERY_IMPORTANT
     },
     {
         .pcName = "GUI Init Task",
         .pvParameters = NULL,
         .pvTaskCode = task_func__init,
         .usStackDepth = 512U,
-        .uxPriority = kAppConst__GUI_PRIORITY+1
+        .uxPriority = kAppConst__PRIORITY_VERY_IMPORTANT+1
     }
 };
 
