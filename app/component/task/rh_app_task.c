@@ -63,6 +63,65 @@ static u32 inline util__get_num_of_idle_slots( void){
     return res;
 }
 
+static u32 inline util__get_buffer_slot_location( TaskHandle_t t, u8 *mask_idx, u8 *mask_bit){
+    #warning "Optimized to hash search"
+    
+    u8 idx = 0;
+    u8 bit = 0;
+
+    // for( idx=0; idx<self->tc_list_mask_len; ++idx){
+    //     for( bit=0; bit<8; ++bit){    
+    //         if( IS_BUSY_AT( self, idx, bit) ){
+    //             if(self->tc_list[ idx*8+bit].handle==t){
+    //                 *mask_bit = bit;
+    //                 *mask_idx = idx;
+    //             }
+    //         }
+    //         ++bit;
+    //     }
+    // }
+    
+    
+    while( idx<self->tc_list_mask_len){
+        bit=0;
+        while( bit<8 ){
+
+            u8 mask = self->tc_list_mask[idx];
+
+            u8 res  = (0==(mask & (1<<bit)));
+
+            // if( IS_BUSY_AT( self, idx, bit) ){
+            if( res==1 ){
+                u8 tmp = (self->tc_list[ idx*8+bit].handle==t);
+                if( tmp==1){
+                    *mask_bit = bit;
+                    *mask_idx = idx;
+                    return 0;
+                }
+            }
+            ++bit;
+        }
+        ++idx;
+    }
+
+    return 1;   /* Impossible, check memory leak */
+}
+
+static u32 inline util__set_buffer_slot_location( TaskHandle_t t, u8 *mask_idx, u8 *mask_bit){
+    #warning "Optimized to hash insert"
+
+    for( *mask_idx=0; *mask_idx<self->tc_list_mask_len; ++*mask_idx){
+        for( *mask_bit=0; *mask_bit<8; ++*mask_bit){    
+            if( !IS_BUSY_AT( self, *mask_idx, *mask_bit) ){
+                return 0;
+            }
+            ++*mask_bit;
+        }
+    }
+
+    return 1;   /* Buffer full, please reallocate memory */
+}
+
 
 /**
  * @brief   Internal Function: All task created by `TaskMgr` will call this before entering
@@ -71,12 +130,11 @@ static u32 inline util__get_num_of_idle_slots( void){
  * @note    If a task created by TaskMgr. Its task code can run without infinite loop. It will result in a task delete.
 */
 static void task_main_entrance( void* pTaskUnit){
-
     rh_cmn__assert( pTaskUnit!=NULL, "Invalid Task Entrance Unit");
     
     ((AppTaskUnitInternal_t*)pTaskUnit)->func( ((AppTaskUnitInternal_t*)pTaskUnit)->param );
     
-    vTaskDelete( ((AppTaskUnitInternal_t*)pTaskUnit)->handle);
+    self->kill( ((AppTaskUnitInternal_t*)pTaskUnit)->handle, 0);
 }
 
 
@@ -96,6 +154,16 @@ static int launch_function( void){
 
     memset( self->tc_list,      0x00, ((self->tc_list_mask_len)*8*sizeof(AppTaskUnitInternal_t)));
     memset( self->tc_list_mask, 0xff, self->tc_list_mask_len);
+
+    AppTaskUnit_t list = {
+        .pcName = "AppTaskMgr::report()",
+        .pvParameters = NULL,
+        .pvTaskCode = self->report,
+        .usStackDepth = 768U,
+        .uxPriority = kAppConst__PRIORITY_DOCUMENTATION
+    };
+
+    self->create( &list, 1);
     
     return 0;
 }
@@ -130,12 +198,13 @@ static int create_function( AppTaskUnit_t list[], size_t nItems ){
         self->tc_list[ (mask_idx*8)+mask_bit ].func  = list[i].pvTaskCode;
         self->tc_list[ (mask_idx*8)+mask_bit ].param = list[i].pvParameters;
         self->tc_list[ (mask_idx*8)+mask_bit ].depth = list[i].usStackDepth;
-
-        xTaskCreate( task_main_entrance, list[i].pcName, list[i].usStackDepth, &self->tc_list[ (mask_idx*8)+mask_bit ], list[i].uxPriority, list[i].pxCreatedTask);
-
-        self->tc_list[ (mask_idx*8)+mask_bit ].handle = *list[i].pxCreatedTask;
         self->tc_list_mask[mask_idx] &= (u8)(~(1<<mask_bit));
-        ++mask_bit;
+
+        taskENTER_CRITICAL();
+        xTaskCreate( task_main_entrance, list[i].pcName, list[i].usStackDepth, &self->tc_list[ (mask_idx*8)+mask_bit ], list[i].uxPriority, &list[i].pxCreatedTask);
+        self->tc_list[ (mask_idx*8)+mask_bit ].handle = list[i].pxCreatedTask;
+        taskEXIT_CRITICAL();
+        
     }
     return 0;
 }
@@ -148,51 +217,72 @@ static int create_function( AppTaskUnit_t list[], size_t nItems ){
  * @retval  Return 0 if success.
 */
 #if defined (RH_APP_CFG__TASK_MGR_DEBUG) && (RH_APP_CFG__TASK_MGR_DEBUG)==(true)
-static int report_function( void){
+static void report_function( void* param){
+    (void)param;
+
     HeapStats_t report_heap;
-    vPortGetHeapStats( &report_heap);
-    watch.app.logger->printf( "============================================================\n");
-    watch.app.logger->printf( "Application Task Manager Report\n");
-    watch.app.logger->printf( "============================================================\n");
-    watch.app.logger->printf( "Heap Memory Usage ------------------------------------------\n");
-    watch.app.logger->printf( " - Number of Free Memory Blocks:              %ld\tbytes\n", report_heap.xNumberOfFreeBlocks);
-    watch.app.logger->printf( " - Minimum Remaining Free Bytes Since Boot:   %ld\tbytes\n", report_heap.xMinimumEverFreeBytesRemaining);
-    watch.app.logger->printf( " - Maximum Allocable Bytes:                   %ld\tbytes\n", report_heap.xSizeOfLargestFreeBlockInBytes);
-    watch.app.logger->printf( " - Total Remaining Free Bytes:                %ld\tbytes\n", report_heap.xAvailableHeapSpaceInBytes);
-    watch.app.logger->printf( " - Total Heap Size:                           %ld\tbytes\n", configTOTAL_HEAP_SIZE);
-    watch.app.logger->printf( " - Number of calls to pvPortMalloc()          %ld\t\n", report_heap.xNumberOfSuccessfulAllocations);
-    watch.app.logger->printf( " - Number of calls to pvPortFree()            %ld\t\n", report_heap.xNumberOfSuccessfulFrees);
-    watch.app.logger->printf( "\n\n");
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = 30000;
 
-    watch.app.logger->printf( "Task Statistic ---------------------------------------------\n");
-    watch.app.logger->printf( " - Total Number of Tasks                      %ld\t\n", uxTaskGetNumberOfTasks());
-    
+    xLastWakeTime = xTaskGetTickCount();
 
-    for( size_t i=0,mask_idx=0,mask_bit=0; i<TASK_LIST_LENGTH(self); ++i){   
+    while(1){
+        vTaskDelayUntil( &xLastWakeTime, xFrequency);
+
+        vPortGetHeapStats( &report_heap);
+        watch.app.logger->printf( "============================================================\n");
+        watch.app.logger->printf( "Application Task Manager Report\n");
+        watch.app.logger->printf( "============================================================\n");
+        watch.app.logger->printf( "Heap Memory Usage ------------------------------------------\n");
+        watch.app.logger->printf( " - Number of Free Memory Blocks:              %ld\t\n", report_heap.xNumberOfFreeBlocks);
+        watch.app.logger->printf( " - Minimum Remaining Free Bytes Since Boot:   %ld\tbytes\n", report_heap.xMinimumEverFreeBytesRemaining);
+        watch.app.logger->printf( " - Maximum Allocable Bytes:                   %ld\tbytes\n", report_heap.xSizeOfLargestFreeBlockInBytes);
+        watch.app.logger->printf( " - Total Remaining Free Bytes:                %ld\tbytes\n", report_heap.xAvailableHeapSpaceInBytes);
+        watch.app.logger->printf( " - Total Heap Size:                           %ld\tbytes\n", configTOTAL_HEAP_SIZE);
+        watch.app.logger->printf( " - Number of calls to pvPortMalloc()          %ld\t\n", report_heap.xNumberOfSuccessfulAllocations);
+        watch.app.logger->printf( " - Number of calls to pvPortFree()            %ld\t\n", report_heap.xNumberOfSuccessfulFrees);
+        watch.app.logger->printf( "\n\n");
+
+        watch.app.logger->printf( "Task Statistic ---------------------------------------------\n");
+        watch.app.logger->printf( " - Total Number of Tasks                      %ld\t\n", uxTaskGetNumberOfTasks());
+        
+        /**
+         * @note        Task List Mask Example
+         * @example     | ... | 1 0 1 1 0 0 0 0 | 0 0 1 0 1 0 0 1 |     ; Mask bit preview
+         *              | ... |-----Mask[1]-----|-----Mask[0]-----|     ; Mask Array
+         *              |---------------Mask Length---------------|     ; Mask Array Length
+         * 
+         * @note        In this case, mask[1]=(0xB0), mask[0]=(0x29). Each mask bit represents the state of tc_list.
+         *                  tc_list_mask[0].bit[0] = 1      ->  tc_list[0]  doesn't contain any task information. Buffer slot is idle
+         *                  tc_list_mask[0].bit[1] = 0      ->  tc_list[1]  has valid task info. Buffer slot is busy
+         *                  tc_list_mask[0].bit[2] = 0      ->  tc_list[2]  has valid task info. Buffer slot is busy
+         *                  ...
+         *                  tc_list_mask[x].bit[y] = a      ->  tc_list[ x*8+y ] valid if a==0 else idle(invalid)
+        */
+
+        size_t mask_idx = 0;
+        u8     mask_bit = 0;
+
         while( mask_idx<self->tc_list_mask_len ){
-            while( !IS_BUSY_AT( self, mask_idx, mask_bit) && mask_bit<8){
+            while( mask_bit<8){
+                if( IS_BUSY_AT( self, mask_idx, mask_bit)){
+                    TaskHandle_t handle = self->tc_list[ (mask_idx*8)+mask_bit ].handle;
+                    watch.app.logger->printf( " -- Task Name:                                %s\n",\
+                        pcTaskGetName( handle));
+                    watch.app.logger->printf( " -- Task Stack Peak Usage:                    %ld/%ld\n",\
+                        self->tc_list[ (mask_idx*8)+mask_bit ].depth-uxTaskGetStackHighWaterMark2(handle),\
+                        self->tc_list[ (mask_idx*8)+mask_bit ].depth);
+                }
                 ++mask_bit;
-            }
-            if( mask_bit!=8 ){
-                break;
             }
             mask_bit = 0;
             ++mask_idx;
         }
-
-        TaskHandle_t handle = self->tc_list[ (mask_idx*8)+mask_bit ].handle;
-
-        watch.app.logger->printf( " -- Task Name:                                %s\n",\
-            pcTaskGetName( handle));
-        watch.app.logger->printf( " -- Task Stack Peak Usage:                    %ld/%ld\n",\
-            self->tc_list[ (mask_idx*8)+mask_bit ].depth-uxTaskGetStackHighWaterMark2(handle),\
-            self->tc_list[ (mask_idx*8)+mask_bit ].depth);
-
+        watch.app.logger->printf( "\n\n""\033[0m");
     }
 
-    watch.app.logger->printf( "\n\n""\033[0m");
+    
 
-    return 0;
 }
 #endif
 
@@ -202,31 +292,28 @@ static int report_function( void){
  * @param   t   Task handle
  * @retval  Return 0 if success
 */
-static int kill_function( TaskHandle_t t){
-    u32 mask_idx=0, mask_bit=0;
-    while( mask_idx<self->tc_list_mask_len ){
-        while( !IS_BUSY_AT( self, mask_idx, mask_bit) && mask_bit<8){
-            ++mask_bit;
-        }
-        if( mask_bit!=8 && self->tc_list[ (mask_idx*8)+mask_bit ].handle==t ){
-            break;
-        }else{
-            mask_bit = 0;
-        }
-
-        ++mask_idx;
+static int kill_function( TaskHandle_t t, int status){
+    if( t==NULL){
+        t = xTaskGetCurrentTaskHandle();
     }
+    
+    u8 mask_idx=0;
+    u8 mask_bit=0;
 
-    rh_cmn__assert( self->tc_list[ (mask_idx*8)+mask_bit ].handle==t, "Impossible");
+    int res = util__get_buffer_slot_location( t, &mask_idx, &mask_bit);
+    rh_cmn__assert( 0==res, "Impossible");
 
 #if defined (RH_APP_CFG__TASK_MGR_DEBUG) && (RH_APP_CFG__TASK_MGR_DEBUG)==(true)
 
     g_AppTrace.printf( "Task Killed:                   %s\n",\
         pcTaskGetName(self->tc_list[ (mask_idx*8)+mask_bit ].handle));
+
+    g_AppTrace.printf( "Task Returned Status:          %d\n",\
+        status);
+        
     g_AppTrace.printf( "Task Memory History Usage:     %d/%d\t bytes\n",\
-        pcTaskGetName(self->tc_list[ (mask_idx*8)+mask_bit ].handle),\
-        sizeof(StackType_t)*(self->tc_list[ (mask_idx*8)+mask_bit ].depth-uxTaskGetStackHighWaterMark2(self->tc_list[ (mask_idx*8)+mask_bit ].handle)),\
-        sizeof(StackType_t)*self->tc_list[ (mask_idx*8)+mask_bit ].depth);
+        self->tc_list[ (mask_idx*8)+mask_bit ].depth-uxTaskGetStackHighWaterMark2(self->tc_list[ (mask_idx*8)+mask_bit ].handle),\
+        self->tc_list[ (mask_idx*8)+mask_bit ].depth);
     
 #endif
 

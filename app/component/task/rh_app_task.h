@@ -38,7 +38,7 @@ typedef struct AppTaskUnit{
     StackType_t         usStackDepth;
     void               *pvParameters;
     UBaseType_t         uxPriority;
-    TaskHandle_t       *pxCreatedTask;
+    TaskHandle_t        pxCreatedTask;
 }AppTaskUnit_t;
 
 
@@ -86,14 +86,15 @@ typedef struct AppTaskMgr{
      * @note    `RH_APP_CFG__TASK_MGR_DEBUG` MUST set to `1`
      * @retval  Return 0 if success.
     */
-    int (*report)(void);
+    TaskFunction_t RH_PERIODIC report;
 
     /**
      * @brief   External Function: Given a task handle, kill the task.
-     * @param   t   Task handle
+     * @param   t           Task handle
+     * @param   status      Return status
      * @retval  Return 0 if success
     */
-    int (*kill)( TaskHandle_t t);
+    int (*kill)( TaskHandle_t t, int status);
 
 }AppTask_t;
 
