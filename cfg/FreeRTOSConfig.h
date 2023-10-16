@@ -107,6 +107,7 @@ to exclude the API function. */
 #define INCLUDE_xTaskGetHandle           1
 #define INCLUDE_uxTaskGetStackHighWaterMark 1
 #define INCLUDE_uxTaskGetStackHighWaterMark2 1
+#define INCLUDE_pcGetTaskName 1
 
 /*------------- CMSIS-RTOS V2 specific defines -----------*/
 /* When using CMSIS-RTOSv2 set configSUPPORT_STATIC_ALLOCATION to 1
