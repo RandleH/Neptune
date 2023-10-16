@@ -85,7 +85,7 @@ static void entrance_function( void* param){
 
     /* User Application - Use Task Manager to launch user application */
     watch.app.taskmgr->create( watch.app.gui->launch_list, watch.app.gui->launch_list_len);
-
+    watch.app.taskmgr->create( watch.app.gui->run_list, watch.app.gui->run_list_len);
     vTaskDelete(NULL);
 }
 
