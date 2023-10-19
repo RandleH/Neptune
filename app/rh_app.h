@@ -37,6 +37,11 @@
 #endif
 
 
+/* Includes ------------------------------------------------------------------*/
+#include "rh_common.h"
+#include "lvgl.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 
 /* Exported types ------------------------------------------------------------*/
@@ -60,12 +65,30 @@ enum AppConst{
 };
 
 
+typedef struct AppDisplyable{
+    lv_obj_t        *screen;
+    u32              frame_rate_ticks;
+
+    struct{
+        TaskFunction_t    func;
+        TaskHandle_t      handle;
+    } model, visual, ctrl;
+
+}AppDisplyable_t;
+
+
+
 /* Includes ------------------------------------------------------------------*/
 #include "rh_app_trace.h"
 #include "rh_app_utility.h"
 #include "rh_app_task.h"
 #include "rh_app_time.h"
 #include "rh_app_gui.h"
+#include "rh_app_clock.h"
+
+
+
+
 
 
 #endif
