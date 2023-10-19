@@ -19,7 +19,7 @@
 // *                                                                                                    *
 // ******************************************************************************************************
 
-void lv_mem_init(void){
+void RH_WEAK lv_mem_init(void){
     /* Dummy function to pass compile */
 }
 
@@ -37,12 +37,14 @@ void* RH_WEAK lv_realloc_core( void* p, size_t new_size){
     return pvPortRealloc( p, new_size);
 }
 
+#if (LVGL_VERSION_MAJOR==9) && (LVGL_VERSION_MINOR==0) && (LVGL_VERSION_PATCH==0)
 lv_result_t RH_WEAK lv_mem_test_core( void){
     return 0;
 }
+#endif
 
 void lv_mem_monitor_core(lv_mem_monitor_t * mon_p){
-
+	(void)mon_p;
 }
 
 

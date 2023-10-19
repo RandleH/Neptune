@@ -34,43 +34,19 @@
 
 /* Private function prototypes -----------------------------------------------*/
 static void task_func__refreash( void* param);
-static void task_func__init( void* param);
-static void task_func__demo( void* param);
-static void flush_cb(struct _lv_display_t *disp, const lv_area_t *area, uint8_t *px_map);
+
+#if   (LVGL_VERSION_MAJOR==8) && ((LVGL_VERSION_MINOR==3) || (LVGL_VERSION_MINOR==2))
+static void flush_cb( struct _lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p);
+#elif (LVGL_VERSION_MAJOR==9) && (LVGL_VERSION_MINOR==0) && (LVGL_VERSION_PATCH==0)
+static void flush_cb( struct _lv_display_t  *disp,     const lv_area_t *area, uint8_t    *px_map);
+#else
+  #error "Unknown LVGL version."
+#endif
 
 
 /* Private variables ---------------------------------------------------------*/
-enum AppLaunchTaskList{
-    kLaunchTaskList__Refreash = 0,
-    kLaunchTaskList__Init = 1
-};
 
-static AppTaskUnit_t   launch_list[] = {
-    [kLaunchTaskList__Refreash] = {
-        .pcName = "GUI Refreash Task",
-        .pvParameters = NULL,
-        .pvTaskCode = task_func__refreash,
-        .usStackDepth = kAppConst__GUI_STACK_DEPTH,
-        .uxPriority = kAppConst__PRIORITY_VERY_IMPORTANT
-    },
-    [kLaunchTaskList__Init] = {
-        .pcName = "GUI Init Task",
-        .pvParameters = NULL,
-        .pvTaskCode = task_func__init,
-        .usStackDepth = 512U,
-        .uxPriority = kAppConst__PRIORITY_VERY_IMPORTANT+1
-    }
-};
 
-static AppTaskUnit_t   run_list[] = {
-    {
-        .pcName = "GUI Demo",
-        .pvParameters = NULL,
-        .pvTaskCode = task_func__demo,
-        .usStackDepth = 512U,
-        .uxPriority = kAppConst__PRIORITY_IMPORTANT
-    }
-};
 
 /* Private functions ---------------------------------------------------------*/
 static void task_func__refreash( void* param){
@@ -85,51 +61,58 @@ static void task_func__refreash( void* param){
         lv_tick_inc(xFrequency);
         lv_timer_handler();
     }
-    
 }
 
-static void task_func__init( void* param){
+
+
+static int launch_function( void){
     /* Initialize LVGL Library */
     lv_init();
+
+    #if   (LVGL_VERSION_MAJOR==8) && ((LVGL_VERSION_MINOR==3) || (LVGL_VERSION_MINOR==2))   // LVGL Version 8.2.X ~ 8.3.X
+        lv_disp_drv_init( &self->driver);
+        self->driver.draw_buf = &self->buf;
+        self->driver.flush_cb = flush_cb;
+        self->driver.hor_res = kBspConst__SCREEN_HEIGHT;
+        self->driver.ver_res = kBspConst__SCREEN_WIDTH;
+        self->driver.direct_mode = false;
+        lv_disp_draw_buf_init( &self->buf, self->gram[0], self->gram[1], kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM);
+        self->display = lv_disp_drv_register( &self->driver);
+    #elif (LVGL_VERSION_MAJOR==9) && (LVGL_VERSION_MINOR==0) && (LVGL_VERSION_PATCH==0)     // LVGL Version 9.0.0
+        self->display = lv_disp_create( kBspConst__SCREEN_WIDTH, kBspConst__SCREEN_HEIGHT );
+        lv_disp_set_draw_buffers( self->display, self->gram[0], self->gram[1], kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM*sizeof(u16),LV_DISP_RENDER_MODE_PARTIAL);
+        lv_disp_set_flush_cb( self->display, flush_cb);
+    #else
+    #error "Unknown LVGL version."
+    #endif
     
-    self->display = lv_disp_create( kBspConst__SCREEN_WIDTH, kBspConst__SCREEN_HEIGHT );
-    lv_disp_set_draw_buffers( self->display, self->gram[0], self->gram[1], kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM*sizeof(u16),LV_DISP_RENDER_MODE_PARTIAL);
-    
-    lv_disp_set_flush_cb( self->display, flush_cb);
-}
+    xTaskCreate( task_func__refreash, "GUI Refreash Task", kAppConst__GUI_STACK_DEPTH, NULL, kAppConst__PRIORITY_VERY_IMPORTANT, &self->task_refreash);
 
-static void task_func__demo( void* param){
-    lv_obj_t* ui_demoscr = lv_obj_create(NULL);
-    lv_obj_clear_flag( ui_demoscr, LV_OBJ_FLAG_SCROLLABLE );
-    lv_obj_set_style_radius(ui_demoscr, kBspConst__SCREEN_HEIGHT/2, LV_PART_MAIN| LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_demoscr, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_grad_dir(ui_demoscr, LV_GRAD_DIR_NONE, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-
-    lv_obj_t* ui_demotxt = lv_label_create(ui_demoscr);
-    lv_obj_set_width( ui_demotxt, LV_SIZE_CONTENT);  /// 1
-    lv_obj_set_height( ui_demotxt, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_align( ui_demotxt, LV_ALIGN_CENTER );
-    lv_label_set_text(ui_demotxt,"Tap Me");
-
-    lv_obj_set_style_text_opa(ui_demotxt, 255, LV_PART_MAIN| LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_demotxt, &lv_font_montserrat_48, LV_PART_MAIN| LV_STATE_DEFAULT);
-
-    const lv_color_t a[] = { lv_color_hex(0xFF0000), lv_color_hex(0x00FF00), lv_color_hex(0x0000FF) };
-    u8 idx = 0;
-    while(1){
-        lv_obj_set_style_text_color(ui_demotxt, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT );
-        lv_obj_set_style_bg_color(ui_demoscr, a[idx++], LV_PART_MAIN | LV_STATE_DEFAULT );
-        
-        idx %= sizeof(a)/sizeof(*a);
-
-        if( self->request( xTaskGetCurrentTaskHandle()) ){
-            lv_disp_load_scr( ui_demoscr);
-        }
-
-        vTaskDelay(1000);
+    if( self->task_refreash==NULL ){
+        return 1;
     }
+    
+    return OK;
 }
+
+
+
+
+#if   (LVGL_VERSION_MAJOR==8) && ((LVGL_VERSION_MINOR==3) || (LVGL_VERSION_MINOR==2))
+
+static void flush_cb(struct _lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *px_map){
+    /**
+     * @note    Use DMA tranmission to boost refreash rate
+    */
+    rh_bsp_screen__flush( (BspScreenPixel_t *)px_map, area->x1, area->y1, area->x2, area->y2);
+
+    /* IMPORTANT!!!
+     * Inform LVGL that you are ready with the flushing and buf is not used anymore*/
+    lv_disp_flush_ready(disp);
+}
+
+
+#elif (LVGL_VERSION_MAJOR==9) && (LVGL_VERSION_MINOR==0) && (LVGL_VERSION_PATCH==0)
 
 static void flush_cb(struct _lv_display_t *disp, const lv_area_t *area, uint8_t *px_map){
     /*The most simple case (but also the slowest) to put all pixels to the screen one-by-one
@@ -152,12 +135,14 @@ static void flush_cb(struct _lv_display_t *disp, const lv_area_t *area, uint8_t 
     lv_disp_flush_ready(disp);
 }
 
+#else
+  #error "Unknown LVGL version."
+#endif
+
+
 
 /* Functions -----------------------------------------------------------------*/
 static int  request_function( TaskHandle_t from_whom ){
-    if( self->launch_list[kLaunchTaskList__Init].pxCreatedTask==NULL){
-        return 1;
-    }
 
 
     if( self->screen_owner==NULL || self->screen_owner==from_whom ){
@@ -178,12 +163,9 @@ static void  yeild_function( TaskHandle_t from_whom){
 /* Exported Handler ----------------------------------------------------------*/
 AppGui_t g_AppGui = {
     .screen_owner = NULL,        /* No one takes ctrl of the screen initially */
-    .launch_list = launch_list,
-    .launch_list_len = sizeof(launch_list)/sizeof(*launch_list),
-    .run_list = run_list,
-    .run_list_len = sizeof(run_list)/sizeof(*run_list),
-    .yeild = yeild_function,
-    .request = request_function
+    .launch       = launch_function,
+    .yeild        = yeild_function,
+    .request      = request_function
 };
 
 

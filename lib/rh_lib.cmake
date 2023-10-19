@@ -36,6 +36,7 @@ CHECK_LIB_INTEGRITY( ${LIB_DIR__LVGL} result)
 if( ${result} STREQUAL FALSE)
     FetchContent_Declare(   lib_lvgl
                             GIT_REPOSITORY https://github.com/lvgl/lvgl.git
+                            GIT_TAG "release/v8.3"
                             SOURCE_DIR ${LIB_DIR__LVGL})
     FetchContent_MakeAvailable(lib_lvgl)                        
 endif()
@@ -49,9 +50,9 @@ set( LVGL_MISC_DEFINE       -DLV_CONF_BUILD_DISABLE_EXAMPLES=1
                             )
 
 add_definitions( ${LVGL_MISC_DEFINE})
-add_subdirectory( ${LIB_DIR__LVGL} ${PRJ_TOP}/build/lvgl/build)
+add_subdirectory( ${LIB_DIR__LVGL} ${PRJ_TOP}/build/lvgl/build )
 
-target_include_directories(lvgl INTERFACE ${PRJ_TOP}/cfg)
+target_include_directories(lvgl INTERFACE ${PRJ_TOP}/cfg ${PRJ_TOP}/lib/FreeRTOS-Kernel/include)
 target_compile_options(lvgl  INTERFACE   ${CMAKE_CXX_FLAGS} ${CPU_FLAG} ${CXX_FLAG} )
 target_link_options(lvgl INTERFACE ${LINK_FLAG} ${CPU_FLAG})
 
