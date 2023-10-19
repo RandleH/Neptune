@@ -1,0 +1,16 @@
+{
+  "codename": "CourierNewBold44",
+  "ttf_path": "/assets/font/Courier-New-Bold.ttf",
+  "bin_path": "/assets/font/ui_font_CourierNewBold44.bin",
+  "c_path": "/assets/font/ui_font_CourierNewBold44.c",
+  "cfg_path": "/assets/font/ui_font_CourierNewBold44.fcfg",
+  "size": 44,
+  "bpp": 1,
+  "letters": 0,
+  "ranges": [
+    "0x30-0x3A"
+  ],
+  "symbols": "",
+  "customparams": "--no-prefilter",
+  "uploaded": false
+}
