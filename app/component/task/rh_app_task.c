@@ -122,6 +122,12 @@ static u32 inline util__set_buffer_slot_location( TaskHandle_t t, u8 *mask_idx, 
     return 1;   /* Buffer full, please reallocate memory */
 }
 
+static void task_main_entrance( void* pTaskUnit);
+static int launch_function( void);
+static int create_function( AppTaskUnit_t list[], size_t nItems );
+static void report_function( void* param);
+static int kill_function( TaskHandle_t t, int status);
+
 
 /**
  * @brief   Internal Function: All task created by `TaskMgr` will call this before entering
@@ -155,17 +161,14 @@ static int launch_function( void){
     memset( self->tc_list,      0x00, ((self->tc_list_mask_len)*8*sizeof(AppTaskUnitInternal_t)));
     memset( self->tc_list_mask, 0xff, self->tc_list_mask_len);
 
-    AppTaskUnit_t list = {
-        .pcName = "AppTaskMgr::report()",
-        .pvParameters = NULL,
-        .pvTaskCode = self->report,
-        .usStackDepth = 768U,
-        .uxPriority = kAppConst__PRIORITY_DOCUMENTATION
-    };
 
-    self->create( &list, 1);
+    xTaskCreate( report_function, "Task Manger Report", 768U, NULL, kAppConst__PRIORITY_DOCUMENTATION, &self->task_report);
+
+    if( self->task_report==NULL){
+        return 1;
+    }
     
-    return 0;
+    return OK;
 }
 
 /**
@@ -230,21 +233,21 @@ static void report_function( void* param){
         vTaskDelayUntil( &xLastWakeTime, xFrequency);
 
         vPortGetHeapStats( &report_heap);
-        watch.app.logger->printf( "============================================================\n");
-        watch.app.logger->printf( "Application Task Manager Report\n");
-        watch.app.logger->printf( "============================================================\n");
-        watch.app.logger->printf( "Heap Memory Usage ------------------------------------------\n");
-        watch.app.logger->printf( " - Number of Free Memory Blocks:              %ld\t\n", report_heap.xNumberOfFreeBlocks);
-        watch.app.logger->printf( " - Minimum Remaining Free Bytes Since Boot:   %ld\tbytes\n", report_heap.xMinimumEverFreeBytesRemaining);
-        watch.app.logger->printf( " - Maximum Allocable Bytes:                   %ld\tbytes\n", report_heap.xSizeOfLargestFreeBlockInBytes);
-        watch.app.logger->printf( " - Total Remaining Free Bytes:                %ld\tbytes\n", report_heap.xAvailableHeapSpaceInBytes);
-        watch.app.logger->printf( " - Total Heap Size:                           %ld\tbytes\n", configTOTAL_HEAP_SIZE);
-        watch.app.logger->printf( " - Number of calls to pvPortMalloc()          %ld\t\n", report_heap.xNumberOfSuccessfulAllocations);
-        watch.app.logger->printf( " - Number of calls to pvPortFree()            %ld\t\n", report_heap.xNumberOfSuccessfulFrees);
-        watch.app.logger->printf( "\n\n");
+        watch.sys.logger->printf( "============================================================\n");
+        watch.sys.logger->printf( "Application Task Manager Report\n");
+        watch.sys.logger->printf( "============================================================\n");
+        watch.sys.logger->printf( "Heap Memory Usage ------------------------------------------\n");
+        watch.sys.logger->printf( " - Number of Free Memory Blocks:              %ld\t\n", report_heap.xNumberOfFreeBlocks);
+        watch.sys.logger->printf( " - Minimum Remaining Free Bytes Since Boot:   %ld\tbytes\n", report_heap.xMinimumEverFreeBytesRemaining);
+        watch.sys.logger->printf( " - Maximum Allocable Bytes:                   %ld\tbytes\n", report_heap.xSizeOfLargestFreeBlockInBytes);
+        watch.sys.logger->printf( " - Total Remaining Free Bytes:                %ld\tbytes\n", report_heap.xAvailableHeapSpaceInBytes);
+        watch.sys.logger->printf( " - Total Heap Size:                           %ld\tbytes\n", configTOTAL_HEAP_SIZE);
+        watch.sys.logger->printf( " - Number of calls to pvPortMalloc()          %ld\t\n", report_heap.xNumberOfSuccessfulAllocations);
+        watch.sys.logger->printf( " - Number of calls to pvPortFree()            %ld\t\n", report_heap.xNumberOfSuccessfulFrees);
+        watch.sys.logger->printf( "\n\n");
 
-        watch.app.logger->printf( "Task Statistic ---------------------------------------------\n");
-        watch.app.logger->printf( " - Total Number of Tasks                      %ld\t\n", uxTaskGetNumberOfTasks());
+        watch.sys.logger->printf( "Task Statistic ---------------------------------------------\n");
+        watch.sys.logger->printf( " - Total Number of Tasks                      %ld\t\n", uxTaskGetNumberOfTasks());
         
         /**
          * @note        Task List Mask Example
@@ -267,9 +270,9 @@ static void report_function( void* param){
             while( mask_bit<8){
                 if( IS_BUSY_AT( self, mask_idx, mask_bit)){
                     TaskHandle_t handle = self->tc_list[ (mask_idx*8)+mask_bit ].handle;
-                    watch.app.logger->printf( " -- Task Name:                                %s\n",\
+                    watch.sys.logger->printf( " -- Task Name:                                %s\n",\
                         pcTaskGetName( handle));
-                    watch.app.logger->printf( " -- Task Stack Peak Usage:                    %ld/%ld\n",\
+                    watch.sys.logger->printf( " -- Task Stack Peak Usage:                    %ld/%ld\n",\
                         self->tc_list[ (mask_idx*8)+mask_bit ].depth-uxTaskGetStackHighWaterMark2(handle),\
                         self->tc_list[ (mask_idx*8)+mask_bit ].depth);
                 }
@@ -278,7 +281,7 @@ static void report_function( void* param){
             mask_bit = 0;
             ++mask_idx;
         }
-        watch.app.logger->printf( "\n\n""\033[0m");
+        watch.sys.logger->printf( "\n\n""\033[0m");
     }
 
     
@@ -333,7 +336,6 @@ static int kill_function( TaskHandle_t t, int status){
 AppTask_t g_AppTaskMgr = {
     .launch = launch_function,
     .create = create_function,
-    .report = report_function,
     .kill   = kill_function
 };
 

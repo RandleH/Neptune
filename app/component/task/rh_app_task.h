@@ -63,7 +63,8 @@ typedef struct AppTaskMgr{
     AppTaskUnitInternal_t               *tc_list;
     u8                                  *tc_list_mask;              /*!< 0=BUSY; 1=IDLE */
     u8                                   tc_list_mask_len;
-
+    
+    TaskHandle_t                         task_report;
 
     /* Public ------------------------------------------------------------*/
     /**
@@ -86,7 +87,7 @@ typedef struct AppTaskMgr{
      * @note    `RH_APP_CFG__TASK_MGR_DEBUG` MUST set to `1`
      * @retval  Return 0 if success.
     */
-    TaskFunction_t RH_PERIODIC report;
+    
 
     /**
      * @brief   External Function: Given a task handle, kill the task.

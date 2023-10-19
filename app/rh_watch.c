@@ -36,23 +36,82 @@
 // }
 
 
+static void bsp_init_function( void){
+    taskENTER_CRITICAL();
+    /* Print General Information */
+    CmnChipUID_t uid;
+    rh_cmn_chip__uid( &uid);
+    watch.sys.logger->printf( "Device Serial Number: %02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d\r\n", uid.raw[0],uid.raw[1],uid.raw[2],uid.raw[3],uid.raw[4],uid.raw[5],uid.raw[6],uid.raw[7],uid.raw[8],uid.raw[9],uid.raw[10],uid.raw[11]);
+
+    watch.sys.logger->printf( "CPU Info: System Core Frequency: %ld Hz\r\n", HAL_RCC_GetSysClockFreq());
+    watch.sys.logger->printf( "CPU Info: AHB Clock Frequency: %ld Hz\r\n", HAL_RCC_GetHCLKFreq());
+    watch.sys.logger->printf( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
+    watch.sys.logger->printf( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
+    watch.sys.logger->printf("\n\n"); 
+
+
+    int ret;
+    
+    watch.sys.logger->printf("Hardware Initializing...\n");
+    /* Peripheral Initialization */
+    watch.sys.logger->printf("GPIO ........................................ ");
+    ret = rh_cmn_gpio__init();
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+    
+    watch.sys.logger->printf("USART ....................................... ");
+    ret = rh_cmn_usart__init( kCmnConst__USART_BAUDRATE);
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+    
+    watch.sys.logger->printf("SPI ......................................... ");
+    ret = rh_cmn_spi__init( kCmnSpiFreq_48MHz);
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+    
+    watch.sys.logger->printf("MCO ......................................... ");
+    ret = rh_cmn_clk__mco_disable();
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+    
+    watch.sys.logger->printf("\n\n"); 
+
+
+    /* BSP Initialization */
+    watch.sys.logger->printf("Device Initializing...\n");
+    watch.sys.logger->printf("Screen ...................................... ");
+    ret = rh_bsp_screen__init();
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+
+    watch.sys.logger->printf("\n\n"); 
+    taskEXIT_CRITICAL();
+}
+
+static void sys_init_function( void){
+    taskENTER_CRITICAL();
+    
+    int ret;
+    watch.sys.logger->printf("System Initializing...\n");
+
+    watch.sys.logger->printf("Task Manager ................................ ");
+    ret = watch.sys.taskmgr->launch();
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+
+    watch.sys.logger->printf("Trace ....................................... ");
+    ret = watch.sys.logger->launch();
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+
+    watch.sys.logger->printf("GUI ......................................... ");
+    ret = watch.sys.gui->launch();
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
+    
+    watch.sys.logger->printf("\n\n");
+    taskEXIT_CRITICAL();
+
+}
 
 
 
 
 
 static void entrance_function( void* param){
-
     (void)param;
-
-    /* Peripheral Initialization */
-    rh_cmn_gpio__init();    
-    rh_cmn_usart__init( kCmnConst__USART_BAUDRATE);
-    rh_cmn_spi__init( kCmnSpiFreq_48MHz);
-    rh_cmn_clk__mco_disable();
-
-    /* BSP Initialization */
-    rh_bsp_screen__init();
 
     /* Application Sanity Test */
     /**
@@ -68,27 +127,50 @@ static void entrance_function( void* param){
     // }
 #endif
 
-    /* System Application Initialization */
-    watch.app.taskmgr->launch();
-    watch.app.logger->launch();
-    watch.app.logger->cache_mode(false);
+    /* BSP Initialization */
+    bsp_init_function();
 
-    /* Print General Information */
-    CmnChipUID_t uid;
-    rh_cmn_chip__uid( &uid);
-    watch.app.logger->printf( "Device Serial Number: %02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d-%02d\r\n", uid.raw[0],uid.raw[1],uid.raw[2],uid.raw[3],uid.raw[4],uid.raw[5],uid.raw[6],uid.raw[7],uid.raw[8],uid.raw[9],uid.raw[10],uid.raw[11]);
+    /* System Initialization */
+    sys_init_function();
 
-    watch.app.logger->printf( "CPU Info: System Core Frequency: %ld Hz\r\n", HAL_RCC_GetSysClockFreq());
-    watch.app.logger->printf( "CPU Info: AHB Clock Frequency: %ld Hz\r\n", HAL_RCC_GetHCLKFreq());
-    watch.app.logger->printf( "CPU Info: APB1 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK1Freq());
-    watch.app.logger->printf( "CPU Info: APB2 Clock Frequency: %ld Hz\r\n", HAL_RCC_GetPCLK2Freq());
+    /* Print all message on screen */
+    watch.sys.logger->cache_mode(false);
+    
+    
+    // rh_cmn__assert( watch.app.clock->isDisplayable!=NULL, "Clock Application must displayable");
 
-    /* User Application - Use Task Manager to launch user application */
-    watch.app.taskmgr->create( watch.app.gui->launch_list, watch.app.gui->launch_list_len);
-    watch.app.taskmgr->create( watch.app.gui->run_list, watch.app.gui->run_list_len);
+    AppTaskUnit_t list[] = {
+        {
+            .pcName = "Clock Model",
+            .pvParameters = NULL,
+            .pvTaskCode = watch.app.clock->isDisplayable->model.func,
+            .usStackDepth = 512,
+            .uxPriority = kAppConst__PRIORITY_IMPORTANT,
+        },
+        {
+            .pcName = "Clock View",
+            .pvParameters = NULL,
+            .pvTaskCode = watch.app.clock->isDisplayable->visual.func,
+            .usStackDepth = 512,
+            .uxPriority = kAppConst__PRIORITY_IMPORTANT,
+        },
+        {
+            .pcName = "Clock Ctrl",
+            .pvParameters = NULL,
+            .pvTaskCode = watch.app.clock->isDisplayable->ctrl.func,
+            .usStackDepth = 512,
+            .uxPriority = kAppConst__PRIORITY_IMPORTANT,
+        }
+    };
+    watch.sys.taskmgr->create( list, 3);
+
+    watch.app.clock->isDisplayable->model.handle  = list[0].pvTaskCode;
+    watch.app.clock->isDisplayable->visual.handle = list[1].pvTaskCode;
+    watch.app.clock->isDisplayable->ctrl.handle   = list[2].pvTaskCode;
+
+
     vTaskDelete(NULL);
 }
-
 
 
 
@@ -97,8 +179,11 @@ static void entrance_function( void* param){
 WatchTopStructure_t watch = {
     .entrance = entrance_function,
     .app = {
+        .clock    = &g_AppClock
+    },
+    .sys = {
+        .gui      = &g_AppGui,
         .logger   = &g_AppTrace,
         .taskmgr  = &g_AppTaskMgr,
-        .gui      = &g_AppGui
-    },
+    }
 };

@@ -10,10 +10,15 @@
 typedef struct WatchTopStructure{
 
     struct AppList{
+        AppClock_t      *clock;
+
+    }app;
+
+    struct SysList{
         AppTrace_t      *logger;            /*!< System Application: Logger Application */
         AppTask_t       *taskmgr;           /*!< System Application: Task Manager Application */
         AppGui_t        *gui;               /*!< User Application: Graph User Interface */
-    }app;
+    }sys;
 
     
     void (*entrance)( void*);

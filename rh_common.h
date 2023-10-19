@@ -50,6 +50,10 @@ typedef volatile u64 vu64;
 #endif
 
 
+#ifndef OK
+#define OK     (0)
+#endif
+
 
 #endif
 

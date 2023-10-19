@@ -104,9 +104,19 @@ static void rh_cmn_usart__rx_completed_callback( USART_HandleTypeDef * hw_handle
 */
 static void rh_cmn_usart__tx_completed_callback( USART_HandleTypeDef * hw_handle){
     if( hw_handle == &g_CmnUsart.hw_handle){
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        vTaskNotifyGiveFromISR( g_CmnUsart.task_handle_dma_tx_mgr, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+        if( g_CmnUsart.task_handle_dma_tx_mgr!=NULL){
+            BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+            vTaskNotifyGiveFromISR( g_CmnUsart.task_handle_dma_tx_mgr, &xHigherPriorityTaskWoken);
+            portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+        }else{
+            /**
+             * @note    May or may not be a bug. By default, all dma transmission are launched by `rh_cmn_usart__dma_tx()`, 
+             *          that's being said `task_handle_dma_tx_mgr` must be a valid pointer except this interrupt was triggered 
+             *          by something else.
+             *          However, in stm32, the interrupt may be triggered once initialized regardless of data exists or not
+            */
+        }
+        
     }
 }
 
