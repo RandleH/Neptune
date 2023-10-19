@@ -94,6 +94,7 @@ typedef struct AppTrace{
     void (*cache_mode)( bool cmd);
     int (*printf)( const char *fmt, ...);
     int (*purge)(void);
+    int (*flush)(void);
     int (*exit)(int);
 
 }AppTrace_t;

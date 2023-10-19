@@ -399,9 +399,8 @@ static int launch_function( void){
  *              Return 2 if failed
 */
 static int printf_function( const char *fmt, ...){
-    if( self->task_tx==NULL || fmt==NULL ){
-        /* App uninitialized */
-        return 2;
+    if( self->lock_handle==NULL ){
+        self->lock_handle = xSemaphoreCreateMutexStatic( &self->lock_buffer );
     }
 
     u32     ret    = RET_OK;        /* Value about to return */
@@ -549,19 +548,20 @@ static int printf_function( const char *fmt, ...){
 
 
 static void cache_mode_function( bool cmd){
+    taskENTER_CRITICAL();
     /* Request access to shared resource */
     if( xSemaphoreTake( self->lock_handle, 50) ){
 
-        if( cmd==true && self->isCacheMode==false){
+        if( cmd==false && self->isCacheMode==true){
             /* Trigger to send message through hardware */
             xTaskNotifyGive( self->task_tx);
         }
 
-
-        self->isCacheMode = (cmd!=false);
+        self->isCacheMode = cmd;
         /* Free shared resource */
         xSemaphoreGive( self->lock_handle);
     }
+    taskEXIT_CRITICAL();
 }
 
 /**
@@ -614,6 +614,22 @@ static int purge_function( void){
     return 0;
 }
 
+static int flush_function( void){
+    taskENTER_CRITICAL();
+
+    util__transfer_tx();
+    rh_cmn__assert( self->buffer.mask_rx == 0xFFFFFFFF, "State error after logger::flush ");
+    rh_cmn__assert( self->buffer.mask_tx == 0xFFFFFFFF, "State error after logger::flush ");
+    rh_cmn__assert( self->buffer.anchor.pHead == NULL, "State error after logger::flush ");
+    rh_cmn__assert( self->buffer.anchor.pEnd == (AppTraceUnit_t*)(&self->buffer.anchor), "State error after logger::flush ");
+        
+    taskEXIT_CRITICAL();    
+    
+    return 0;
+}
+
+
+
 
 
 /* Exported variable ---------------------------------------------------------*/
@@ -630,8 +646,10 @@ AppTrace_t g_AppTrace = {
     },
     .launch      = launch_function,
     .cache_mode  = cache_mode_function,
+    .isCacheMode = true,
     .printf      = printf_function,
     .purge       = purge_function,
+    .flush       = flush_function,
     .exit        = exit_function
 };
 
