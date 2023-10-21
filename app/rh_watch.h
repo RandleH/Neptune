@@ -5,7 +5,8 @@
 
 
 #include "rh_app.h"
-
+#include "rh_cmn.h"
+#include "rh_bsp.h"
 
 typedef struct WatchTopStructure{
 
@@ -20,6 +21,11 @@ typedef struct WatchTopStructure{
         AppGui_t        *gui;               /*!< User Application: Graph User Interface */
     }sys;
 
+    struct HwList{
+        CmnSpi_t        *spi;
+        CmnRtc_t        *rtc;
+        BspScreen_t     *screen;
+    }hw;
     
     void (*entrance)( void*);
 
@@ -27,8 +33,6 @@ typedef struct WatchTopStructure{
 
 
 extern WatchTopStructure_t watch;
-
-
 
 
 #endif

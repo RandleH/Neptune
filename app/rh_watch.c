@@ -1,6 +1,7 @@
 
 
 
+#include <string.h>
 
 #include "rh_watch.h"
 #include "rh_cmn.h"
@@ -69,7 +70,13 @@ static void bsp_init_function( void){
     watch.sys.logger->printf("MCO ......................................... ");
     ret = rh_cmn_clk__mco_disable();
     (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
-    
+
+#ifndef __TIMESTAMP__
+#define __TIMESTAMP__   "Thu Jan 01 00:00:00 1970"
+#endif
+    watch.sys.logger->printf("RTC ......................................... ");
+    ret = rh_cmn_rtc__init( __TIMESTAMP__);
+    (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
     watch.sys.logger->printf("\n\n"); 
 
 
@@ -185,5 +192,10 @@ WatchTopStructure_t watch = {
         .gui      = &g_AppGui,
         .logger   = &g_AppTrace,
         .taskmgr  = &g_AppTaskMgr,
+    },
+    .hw = {
+        .rtc      = &g_CmnRtc,
+        .spi      = &g_CmnSpi,
+        .screen   = &g_BspScreen
     }
 };
