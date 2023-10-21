@@ -32,7 +32,7 @@ typedef struct WatchTopStructure{
 }WatchTopStructure_t;
 
 
-extern WatchTopStructure_t watch;
+extern const WatchTopStructure_t watch;
 
 
 #endif

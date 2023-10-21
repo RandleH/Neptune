@@ -183,7 +183,7 @@ static void entrance_function( void* param){
 
 
 
-WatchTopStructure_t watch = {
+const WatchTopStructure_t watch = {
     .entrance = entrance_function,
     .app = {
         .clock    = &g_AppClock

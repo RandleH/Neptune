@@ -1,6 +1,16 @@
 
 # Ignored Folder
 build
+sqstudio/cache
+sqstudio/images
+sqstudio/backup
+sqstudio/autosave
+sqstudio/*.c
+sqstudio/*.h
+sqstudio/*.txt
+sqstudio/components
+sqstudio/screens
+
 CMakeFiles
 
 
