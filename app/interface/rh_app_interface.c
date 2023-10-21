@@ -3,7 +3,7 @@
 
 #include "rh_app_interface.h"
 #include "rh_cmn.h"
-
+#include "FreeRTOS.h"
 
 
 // ******************************************************************************************************
@@ -18,6 +18,13 @@
 // * Return    : (void *) Pointer to allocate region, NULL if error on allocation                       *
 // *                                                                                                    *
 // ******************************************************************************************************
+
+
+
+
+uint32_t HAL_GetTick(void){
+	return (uint32_t)xTaskGetTickCount();
+}
 
 void RH_WEAK lv_mem_init(void){
     /* Dummy function to pass compile */
