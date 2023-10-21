@@ -153,10 +153,10 @@ u32 rh_cmn_clk__set_cpu  ( enum CmnCpuFreq frequency ){
 
     HAL_RCC_OscConfig(&RCC_OscInitStruct); //  HAL_OK;
 
-    memset( &RCC_OscInitStruct, 0, sizeof(RCC_OscInitStruct));
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE;
-    RCC_OscInitStruct.LSEState       = RCC_LSE_ON;
-    HAL_RCC_OscConfig(&RCC_OscInitStruct);  //  HAL_OK;
+    // memset( &RCC_OscInitStruct, 0, sizeof(RCC_OscInitStruct));
+    // RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE;
+    // RCC_OscInitStruct.LSEState       = RCC_LSE_ON;
+    // HAL_RCC_OscConfig(&RCC_OscInitStruct);  //  HAL_OK;
 
     /** Initializes the CPU, AHB and APB buses clocks
      */
@@ -167,16 +167,16 @@ u32 rh_cmn_clk__set_cpu  ( enum CmnCpuFreq frequency ){
 
     HAL_RCC_ClockConfig( &RCC_ClkInitStruct, FLASH_LATENCY_3); // HAL_OK;
 
-    __HAL_RCC_RTC_CONFIG(RCC_RTCCLKSOURCE_LSE);
+    // __HAL_RCC_RTC_CONFIG(RCC_RTCCLKSOURCE_LSE);
     
 
-    RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC;
-    PeriphClkInit.RTCClockSelection    = RCC_RTCCLKSOURCE_LSE;
-    HAL_RCCEx_PeriphCLKConfig( &PeriphClkInit);
+    // RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+    // PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+    // PeriphClkInit.RTCClockSelection    = RCC_RTCCLKSOURCE_LSE;
+    // HAL_RCCEx_PeriphCLKConfig( &PeriphClkInit);
 
 
-    __HAL_RCC_RTC_ENABLE();
+    // __HAL_RCC_RTC_ENABLE();
 
     HAL_RCC_EnableCSS();
     return 0;

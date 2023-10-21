@@ -59,9 +59,24 @@ int rh_cmn_rtc__init( const char* time_stamp){
     }else{
         return 1;
     }
-    
-    
 
+    HAL_PWR_EnableBkUpAccess();
+
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE;
+    RCC_OscInitStruct.LSEState       = RCC_LSE_ON;
+    HAL_RCC_OscConfig(&RCC_OscInitStruct);  //  HAL_OK;
+
+    __HAL_RCC_RTC_CONFIG(RCC_RTCCLKSOURCE_LSE);
+    
+    RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+    PeriphClkInit.RTCClockSelection    = RCC_RTCCLKSOURCE_LSE;
+    HAL_RCCEx_PeriphCLKConfig( &PeriphClkInit);
+
+    __HAL_RCC_RTC_ENABLE();
+    
     self->hw_handle.Instance            = RTC;
     self->hw_handle.Init.HourFormat     = RTC_HOURFORMAT_24;
     self->hw_handle.Init.AsynchPrediv   = 0x7F;
@@ -70,8 +85,7 @@ int rh_cmn_rtc__init( const char* time_stamp){
     self->hw_handle.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
     self->hw_handle.Init.OutPutType     = RTC_OUTPUT_TYPE_OPENDRAIN;
     
-    HAL_PWR_EnableBkUpAccess();
-    __HAL_RCC_RTC_ENABLE();
+    
     if(HAL_OK!=HAL_RTC_Init(&self->hw_handle)){
         return  2;
     }
@@ -81,7 +95,7 @@ int rh_cmn_rtc__init( const char* time_stamp){
         HAL_RTC_SetDate( &self->hw_handle, &date, RTC_HOURFORMAT_24);
         HAL_RTCEx_BKUPWrite( &self->hw_handle, RTC_BKP_DR0, 0x5050);
     }
-    
+
     return 0;
 }
 
