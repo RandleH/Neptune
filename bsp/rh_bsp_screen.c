@@ -38,12 +38,12 @@
 
 #define PIN_DC(x)\
     do{\
-        ((x)==0)? rh_cmn_gpio__unsetBit( GPIOC, (1<<15)) : rh_cmn_gpio__setBit( GPIOC, (1<<15));\
+        ((x)==0)? rh_cmn_gpio__unsetBit( GPIOB, (1<<2)) : rh_cmn_gpio__setBit( GPIOB, (1<<2));\
     }while(0)
 
 #define PIN_CS(x)\
     do{\
-        ((x)==0)? rh_cmn_gpio__unsetBit( GPIOC, (1<<14)) : rh_cmn_gpio__setBit( GPIOC, (1<<14));\
+        ((x)==0)? rh_cmn_gpio__unsetBit( GPIOB, (1<<12)) : rh_cmn_gpio__setBit( GPIOB, (1<<12));\
     }while(0)
 
 #define PIN_RST(x)\
@@ -60,17 +60,11 @@
 
 
 
-enum BspScreenTransferMode{
-    kBspScreenTransferMode__BLK = 0,
-    kBspScreenTransferMode__DMA = 1,
-};
 
-typedef struct BspScreen{
-    enum BspScreenTransferMode tx_mode;
-    BspScreenPixel_t           gram[kBspConst__SCREEN_GRAM_SIZE];
-}BspScreen_t;
 
-static struct BspScreen s_context = {0};
+
+
+BspScreen_t g_BspScreen = {0};
 
 
 
@@ -196,7 +190,7 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
             return 2;
     }
 
-    if( s_context.tx_mode==kBspScreenTransferMode__BLK ){
+    if( g_BspScreen.tx_mode==kBspScreenTransferMode__BLK ){
         u8 done = false;
         rh_bsp_screen__area( xs, ys, xe, ye);
         PIN_DC(1);
@@ -205,18 +199,18 @@ static u32 rh_bsp_screen__fill( const BspScreenPixel_t color, u16 xs, u16 ys, u1
             #warning "Note: Do something"
         }
         PIN_CS(1);
-    }else if( s_context.tx_mode==kBspScreenTransferMode__DMA ){
-        for( int i=0; i<kBspConst__SCREEN_GRAM_SIZE; i+=2){
-            s_context.gram[i] = color;
-        }
+    }else if( g_BspScreen.tx_mode==kBspScreenTransferMode__DMA ){
+        // for( int i=0; i<kBspConst__SCREEN_GRAM_SIZE; i+=2){
+        //     g_BspScreen.gram[i] = color;
+        // }
 
-        rh_bsp_screen__area( xs, ys, xe, ye);
-        PIN_DC(1);
-        u32 total_pix = (xe-xs+1)*(ye-ys+1);
-        u32 nItems = (total_pix > kBspConst__SCREEN_GRAM_SIZE)? kBspConst__SCREEN_GRAM_SIZE : total_pix;
-        u32 nTimes = (total_pix > kBspConst__SCREEN_GRAM_SIZE)? total_pix/kBspConst__SCREEN_GRAM_SIZE : 1;
-        rh_cmn_spi__send_dma( (u8*)s_context.gram, nItems*sizeof(BspScreenPixel_t), nTimes, 0, NULL);
-        rh_cmn_spi__send_dma( (u8*)s_context.gram, (total_pix % kBspConst__SCREEN_GRAM_SIZE)*sizeof(BspScreenPixel_t), 1, 0, NULL);
+        // rh_bsp_screen__area( xs, ys, xe, ye);
+        // PIN_DC(1);
+        // u32 total_pix = (xe-xs+1)*(ye-ys+1);
+        // u32 nItems = (total_pix > kBspConst__SCREEN_GRAM_SIZE)? kBspConst__SCREEN_GRAM_SIZE : total_pix;
+        // u32 nTimes = (total_pix > kBspConst__SCREEN_GRAM_SIZE)? total_pix/kBspConst__SCREEN_GRAM_SIZE : 1;
+        // rh_cmn_spi__send_dma( (u8*)g_BspScreen.gram, nItems*sizeof(BspScreenPixel_t), nTimes, 0, NULL);
+        // rh_cmn_spi__send_dma( (u8*)g_BspScreen.gram, (total_pix % kBspConst__SCREEN_GRAM_SIZE)*sizeof(BspScreenPixel_t), 1, 0, NULL);
         PIN_CS(1);
     }
 
@@ -373,7 +367,7 @@ u32 rh_bsp_screen__init( void){
  * @return      Always return 0
 */
 u32 rh_bsp_screen__set_dma_transfer( void){
-    s_context.tx_mode = kBspScreenTransferMode__DMA;
+    g_BspScreen.tx_mode = kBspScreenTransferMode__DMA;
     return 0;
 }
 
@@ -382,7 +376,7 @@ u32 rh_bsp_screen__set_dma_transfer( void){
  * @return      Always return 0
 */
 u32 rh_bsp_screen__set_blk_transfer( void){
-    s_context.tx_mode = kBspScreenTransferMode__BLK;
+    g_BspScreen.tx_mode = kBspScreenTransferMode__BLK;
     return 0;
 }
 
@@ -408,9 +402,9 @@ u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u
     rh_bsp_screen__area( xs, ys, xe, ye);
 
     PIN_DC(1);
-    if( s_context.tx_mode==kBspScreenTransferMode__DMA ){
+    if( g_BspScreen.tx_mode==kBspScreenTransferMode__DMA ){
         rh_cmn_spi__send_dma( (u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t), 1, 0, NULL);
-    }else if( s_context.tx_mode==kBspScreenTransferMode__BLK){
+    }else if( g_BspScreen.tx_mode==kBspScreenTransferMode__BLK){
         u8 done = false;
         rh_cmn_spi__send_block( (const u8*)buf, (xe-xs+1)*(ye-ys+1)*sizeof(BspScreenPixel_t), 1, 0, &done);
         if( !done){

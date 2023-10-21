@@ -35,6 +35,15 @@
 /* Exported types ------------------------------------------------------------*/
 typedef u16   BspScreenPixel_t;
 
+enum BspScreenTransferMode{
+    kBspScreenTransferMode__BLK = 0,
+    kBspScreenTransferMode__DMA = 1,
+};
+
+typedef struct BspScreen{
+    enum BspScreenTransferMode tx_mode;
+    // BspScreenPixel_t           gram[kBspConst__SCREEN_GRAM_SIZE];
+}BspScreen_t;
 
 
 /* Functions -----------------------------------------------------------------*/
@@ -45,7 +54,7 @@ u32 rh_bsp_screen__flush( const BspScreenPixel_t *buf, u16 xs, u16 ys, u16 xe, u
 
 
 
-
+extern BspScreen_t g_BspScreen;
 
 #endif
 /************************ (C) COPYRIGHT RandleH *****END OF FILE***************/
