@@ -43,3 +43,55 @@ u8 inline rh_cmn_math__numOf0_8bits( u8 value){
 }
 
 
+u8 inline rh_cmn_math__is_valid_date( u16 year, u8 month, u8 day){
+    if( day==0 || day>=32 || month>=13 || month==0 )
+        return false;
+    
+    if( day==31){
+        if( month<=7 ){
+            if( ((month&0x01)==0) )
+                return false;
+        }else{
+            if( ((month&0x01)==1) )
+                return false;
+        }
+    }
+    
+    /* Leap Year Condition */
+    if( month==2 && ((year&0x03)==0x00) && day>28 ){
+        return false;
+    }
+    return true;
+}
+
+u8 inline rh_cmn_math__is_valid_time( u8 hour, u8 minute, u8 second){
+    return hour<24&&minute<60&&second<60;
+}
+
+/**
+ * @brief   Get the week day given the date
+ * @note    Zeller Algorithm
+ * @param   year    Unlimited
+ * @param   month   Range 1~12 -> Jan ~ Dec
+ * @param   day     Range 1~31 -> 1st ~ 31th
+ * @return  Return 1~7 the weekday
+*/
+u8 inline rh_cmn_math__zeller( u16 year, u8 month, u8 day){
+    
+    
+    
+    
+    u16 century = 0;
+    if( month<=2){
+        month    += 12;
+        century   = (year-1)/1000;
+        year      = (year+100-1)%100;
+    }else{
+        century   = year/100;
+        year     %= 100;
+    }
+    u8 res = (day + (13*(month+1))/5 + year + (year>>2) + (century>>2) - (century<<1))%7;
+    res = (res+7)%7;
+
+    return res<2 ? res+6 : res-1;
+}

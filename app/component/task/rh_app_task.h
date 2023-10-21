@@ -34,7 +34,7 @@
 
 typedef struct AppTaskUnit{
     TaskFunction_t      pvTaskCode;
-    const char * const  pcName;
+    const char *        pcName;
     StackType_t         usStackDepth;
     void               *pvParameters;
     UBaseType_t         uxPriority;

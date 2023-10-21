@@ -79,6 +79,7 @@ enum CmnConst{
 #include "rh_cmn_chip.h"
 #include "rh_cmn_math.h"
 #include "rh_cmn_rtc.h"
+#include "rh_cmn_math.h"
 #endif
 
 /************************ (C) COPYRIGHT RandleH *****END OF FILE***************/

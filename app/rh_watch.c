@@ -114,7 +114,19 @@ static void sys_init_function( void){
 }
 
 
+static void custom_function( void* param){
+    TickType_t xLastWakeTime;
+    const TickType_t xFrequency = 30000;
 
+    xLastWakeTime = xTaskGetTickCount();
+
+    while(1){
+        vTaskDelayUntil( &xLastWakeTime, xFrequency );
+        watch.sys.logger->printf("RTC Report Time: %s\n", rh_cmn_rtc__report());
+
+        
+    }
+}
 
 
 static void entrance_function( void* param){
@@ -140,9 +152,9 @@ static void entrance_function( void* param){
     /* System Initialization */
     sys_init_function();
 
+    
     /* Print all message on screen */
     watch.sys.logger->cache_mode(false);
-    
     
     // rh_cmn__assert( watch.app.clock->isDisplayable!=NULL, "Clock Application must displayable");
 
@@ -171,9 +183,18 @@ static void entrance_function( void* param){
     };
     watch.sys.taskmgr->create( list, 3);
 
-    watch.app.clock->isDisplayable->model.handle  = list[0].pvTaskCode;
-    watch.app.clock->isDisplayable->visual.handle = list[1].pvTaskCode;
-    watch.app.clock->isDisplayable->ctrl.handle   = list[2].pvTaskCode;
+    watch.app.clock->isDisplayable->model.handle  = list[0].pxCreatedTask;
+    watch.app.clock->isDisplayable->visual.handle = list[1].pxCreatedTask;
+    watch.app.clock->isDisplayable->ctrl.handle   = list[2].pxCreatedTask;
+
+     
+    list[0].pcName = "RTC report";
+    list[0].pvParameters = NULL;
+    list[0].pvTaskCode = custom_function;
+    list[0].usStackDepth = 512;
+    list[0].uxPriority = kAppConst__PRIORITY_DOCUMENTATION;
+        
+    watch.sys.taskmgr->create( list, 1);
 
 
     vTaskDelete(NULL);
