@@ -49,6 +49,18 @@ typedef volatile u64 vu64;
 #define RH_ONETIME
 #endif
 
+#ifndef RH_TIMESTAMP
+#ifndef __TIMESTAMP__
+#define RH_TIMESTAMP   "Thu Jan 01 00:00:00 1970"
+#else
+#define RH_TIMESTAMP   __TIMESTAMP__
+#endif
+
+#ifndef RH_HASH
+#define RH_HASH     (0x41A798C0)
+#endif
+
+#endif
 
 #ifndef OK
 #define OK     (0)

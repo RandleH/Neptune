@@ -19,8 +19,6 @@
  *              3: Hardware initialization failed
 */
 int rh_cmn_rtc__init( const char* time_stamp){
-    
-    
     /**
      * @name    Time Stamp  __TIME_STAMP__
      * @example Thu Oct 19 22:41:50 2023
@@ -90,10 +88,10 @@ int rh_cmn_rtc__init( const char* time_stamp){
         return  3;
     }
 
-    if( 0xAAAA!=HAL_RTCEx_BKUPRead( &self->hw_handle, RTC_BKP_DR0)){
+    if( ((u16)(RH_HASH&0xFFFF))!=HAL_RTCEx_BKUPRead( &self->hw_handle, RTC_BKP_DR0)){
         HAL_RTC_SetTime( &self->hw_handle, &self->time, RTC_FORMAT_BIN);
         HAL_RTC_SetDate( &self->hw_handle, &self->date, RTC_FORMAT_BIN);
-        HAL_RTCEx_BKUPWrite( &self->hw_handle, RTC_BKP_DR0, 0xAAAA);
+        HAL_RTCEx_BKUPWrite( &self->hw_handle, RTC_BKP_DR0, (RH_HASH&0xFFFF));
     }
 
     return 0;

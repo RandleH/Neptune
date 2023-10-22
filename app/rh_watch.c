@@ -71,13 +71,10 @@ static void bsp_init_function( void){
     ret = rh_cmn_clk__mco_disable();
     (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
 
-#ifndef __TIMESTAMP__
-#define __TIMESTAMP__   "Thu Jan 01 00:00:00 1970"
-#endif
     watch.sys.logger->printf("RTC ......................................... ");
-    ret = rh_cmn_rtc__init( __TIMESTAMP__);
+    ret = rh_cmn_rtc__init(RH_TIMESTAMP);
     (ret==OK)? watch.sys.logger->printf("success\n") : watch.sys.logger->printf("failed\t Returned value is %d\n", ret);
-    watch.sys.logger->printf("\n\n"); 
+    watch.sys.logger->printf("\n\n");
 
 
     /* BSP Initialization */
@@ -162,23 +159,27 @@ static void entrance_function( void* param){
         {
             .pcName = "Clock Model",
             .pvParameters = NULL,
-            .pvTaskCode = watch.app.clock->isDisplayable->model.func,
+            .pvTaskCode = watch.app.clock->isDisplayable->model.main_func,
+            .pvTaskExitCode = watch.app.clock->isDisplayable->model.exit_func,
             .usStackDepth = 512,
             .uxPriority = kAppConst__PRIORITY_IMPORTANT,
         },
         {
             .pcName = "Clock View",
             .pvParameters = NULL,
-            .pvTaskCode = watch.app.clock->isDisplayable->visual.func,
+            .pvTaskCode = watch.app.clock->isDisplayable->visual.main_func,
+            .pvTaskExitCode = watch.app.clock->isDisplayable->visual.exit_func,
             .usStackDepth = 512,
             .uxPriority = kAppConst__PRIORITY_IMPORTANT,
         },
         {
             .pcName = "Clock Ctrl",
             .pvParameters = NULL,
-            .pvTaskCode = watch.app.clock->isDisplayable->ctrl.func,
+            .pvTaskCode = watch.app.clock->isDisplayable->ctrl.main_func,
+            .pvTaskExitCode = watch.app.clock->isDisplayable->ctrl.exit_func,
             .usStackDepth = 512,
             .uxPriority = kAppConst__PRIORITY_IMPORTANT,
+            
         }
     };
     watch.sys.taskmgr->create( list, 3);
