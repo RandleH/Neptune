@@ -1,42 +1,49 @@
+/**
+  ******************************************************************************
+  * @file    rh_watch.c
+  * @author  RandleH
+  * @brief   Top source code for Watch OS
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2022 RandleH.
+  * All rights reserved.
+  *
+  * This software component is licensed by RandleH under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
 
-
-
+/* Includes ------------------------------------------------------------------*/
 #include <string.h>
 
 #include "rh_watch.h"
 #include "rh_cmn.h"
 
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
+/* Private function prototypes -----------------------------------------------*/
+
+static void bsp_init_function( void);
+static void sys_init_function( void);
+static void entrance_function( void* param);
+
+
+
+/* Private functions ---------------------------------------------------------*/
+
 /**
- * @brief   LED Blink Task
- * @param    param cast to `AppLed_t *` aka. `struct AppLed *`
+ * @brief   Top init function for BSP
+ * @note    This function should only be called from `entrance()`
+ * @note    All other task will be blocked during the function
+ * @refitem     GPIO | SPI | USART | RTC | MCO | LCD SCREEN
 */
-// void task_blink( void* param){
-//     static u8 cnt = 10;
-//     bool flag = true;
-//     while(1){
-//         vTaskDelay(400);
-        
-//         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-//         g_AppTrace.printf( "LED: Turn on\r\n");
-        
-//         vTaskDelay(400);
-        
-//         HAL_GPIO_TogglePin( GPIOC, GPIO_PIN_13);
-//         g_AppTrace.printf( "LED: Turn off\r\n");
-    
-//         if( cnt==0){
-//             if(flag==true){
-//                 rh_cmn_clk__mco_disable();
-//                 flag = false;
-//             }
-//         }else{
-//             --cnt;
-//         }
-//     }
-// }
-
-
 static void bsp_init_function( void){
     taskENTER_CRITICAL();
     /* Print General Information */
@@ -87,6 +94,11 @@ static void bsp_init_function( void){
     taskEXIT_CRITICAL();
 }
 
+/**
+ * @brief   Top init function for System
+ * @note    This function should only be called from `entrance()`
+ * @note    All other task will be blocked during the function
+*/
 static void sys_init_function( void){
     taskENTER_CRITICAL();
     
@@ -110,7 +122,11 @@ static void sys_init_function( void){
 
 }
 
-
+/**
+ * @brief   Top custom function 
+ * @note    This function should only be called from `entrance()`
+ * @note    For debug use only. Will be ignored in the release version
+*/
 static void custom_function( void* param){
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = 30000;
@@ -125,7 +141,12 @@ static void custom_function( void* param){
     }
 }
 
-
+/**
+ * @brief   Watch Entrance Function
+ * @note    All process comes from this function
+ * @note    The FreeRTOS will execute the program from this. It is equvalent to a boot program.
+ * @warning CI program was not integrated
+*/
 static void entrance_function( void* param){
     (void)param;
 
@@ -152,8 +173,6 @@ static void entrance_function( void* param){
     
     /* Print all message on screen */
     watch.sys.logger->cache_mode(false);
-    
-    // rh_cmn__assert( watch.app.clock->isDisplayable!=NULL, "Clock Application must displayable");
 
     AppTaskUnit_t list[] = {
         {
@@ -201,10 +220,12 @@ static void entrance_function( void* param){
     vTaskDelete(NULL);
 }
 
+#ifdef __cplusplus
+}
+#endif    
 
 
-
-
+/* Exported constants --------------------------------------------------------*/
 const WatchTopStructure_t watch = {
     .entrance = entrance_function,
     .app = {
@@ -222,3 +243,5 @@ const WatchTopStructure_t watch = {
         .screen   = &g_BspScreen
     }
 };
+
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/
