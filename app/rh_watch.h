@@ -24,6 +24,7 @@ typedef struct WatchTopStructure{
     struct HwList{
         CmnSpi_t        *spi;
         CmnRtc_t        *rtc;
+        CmnUsart_t      *usart;
         BspScreen_t     *screen;
     }hw;
     

@@ -217,6 +217,7 @@ const WatchTopStructure_t watch = {
     .hw = {
         .rtc      = &g_CmnRtc,
         .spi      = &g_CmnSpi,
+        .usart    = &g_CmnUsart,
         .screen   = &g_BspScreen
     }
 };

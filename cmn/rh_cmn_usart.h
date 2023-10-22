@@ -56,7 +56,7 @@ extern "C"{
 
 /* Exported types ------------------------------------------------------------*/
 typedef struct CmnUsart{
-    TaskHandle_t         task_handle_dma_tx_mgr;
+    TaskHandle_t         task_owner_dma;
     TaskHandle_t         task_handle_blk;
     USART_HandleTypeDef  hw_handle;
 }CmnUsart_t;
