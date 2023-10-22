@@ -34,6 +34,7 @@
 
 typedef struct AppTaskUnit{
     TaskFunction_t      pvTaskCode;
+    TaskFunction_t      pvTaskExitCode;
     const char *        pcName;
     StackType_t         usStackDepth;
     void               *pvParameters;
@@ -44,7 +45,9 @@ typedef struct AppTaskUnit{
 
 typedef struct AppTaskUnitInternal{
     TaskFunction_t      func;
+    TaskFunction_t      exit_func;
     void*               param;
+    void*               exit_param;
     TaskHandle_t        handle;
     size_t              depth;
 }AppTaskUnitInternal_t;

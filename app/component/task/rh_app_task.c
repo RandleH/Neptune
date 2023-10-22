@@ -140,6 +140,9 @@ static void task_main_entrance( void* pTaskUnit){
     
     ((AppTaskUnitInternal_t*)pTaskUnit)->func( ((AppTaskUnitInternal_t*)pTaskUnit)->param );
     
+    if( ((AppTaskUnitInternal_t*)pTaskUnit)->exit_func != NULL){
+        ((AppTaskUnitInternal_t*)pTaskUnit)->exit_func( ((AppTaskUnitInternal_t*)pTaskUnit)->exit_param);
+    }
     self->kill( ((AppTaskUnitInternal_t*)pTaskUnit)->handle, 0);
 }
 
@@ -296,6 +299,7 @@ static void report_function( void* param){
  * @retval  Return 0 if success
 */
 static int kill_function( TaskHandle_t t, int status){
+
     if( t==NULL){
         t = xTaskGetCurrentTaskHandle();
     }
@@ -324,6 +328,7 @@ static int kill_function( TaskHandle_t t, int status){
     self->tc_list[ (mask_idx*8)+mask_bit ].func   = NULL;
     self->tc_list[ (mask_idx*8)+mask_bit ].param  = NULL;
     self->tc_list[ (mask_idx*8)+mask_bit ].depth  = 0;
+    self->tc_list[ (mask_idx*8)+mask_bit ].exit_func = NULL;
     
     self->tc_list_mask[mask_idx] |= (u8)((1<<mask_bit));
     vTaskDelete(t);
