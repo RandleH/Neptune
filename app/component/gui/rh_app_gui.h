@@ -40,7 +40,9 @@ typedef struct AppGui{
     /* Private -----------------------------------------------------------*/
     TaskHandle_t       screen_owner;    /* !< Task that take ctrl of the screen */
     TaskHandle_t       task_refreash;
-
+    
+    SemaphoreHandle_t  lock;
+    StaticSemaphore_t  lock_buffer;
 
     lv_color_t         gram[kAppConst__GUI_NUM_OF_GRAM][kAppConst__GUI_NUM_OF_PIXEL_PER_GRAM];
 
@@ -58,16 +60,25 @@ typedef struct AppGui{
     bool               isInitialized;
     
     /* Public ------------------------------------------------------------*/
-    AppTaskUnit_t   *launch_list;           /*!< To launch app, add these through `AppTaskMgr` */
-    size_t           launch_list_len;
-
-    AppTaskUnit_t   *run_list;              /*!< To run app, add these through `AppTaskMgr` */
-    size_t           run_list_len;
-
     
     int  (*launch)( void);
-    void (*yeild)( TaskHandle_t from_whom);
-    int  (*request)( TaskHandle_t from_whom );
+
+    /**
+     * @brief   Request GUI update
+     * @note    You MUST call this before modify any UI widgets
+     * @note    This function must be paired with `yeild()`
+     * @retval  Return 0 if success.
+     *          Return other value if failed
+    */
+    int  (*request)( void);
+
+    /**
+     * @brief   Yield GUI resource
+     * @note    You MUST call this after requesting the GUI & finishing the update
+     * @retval  Return 0 if success.
+     *          Return other value if failed
+    */
+    int  (*yeild)( void);
     void (*halt)( void);
     
 }AppGui_t;

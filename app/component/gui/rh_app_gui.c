@@ -20,6 +20,7 @@
 
 
 /* Includes ------------------------------------------------------------------*/
+#include "rh_watch.h"
 #include "rh_app.h"
 #include "rh_bsp.h"
 #include "lvgl.h"
@@ -59,7 +60,10 @@ static void task_func__refreash( void* param){
         vTaskDelayUntil( &xLastWakeTime, xFrequency );
 
         lv_tick_inc(xFrequency);
+        
+        watch.sys.gui->request();
         lv_timer_handler();
+        watch.sys.gui->yeild();
     }
 }
 
@@ -87,9 +91,15 @@ static int launch_function( void){
     #endif
     
     xTaskCreate( task_func__refreash, "GUI Refreash Task", kAppConst__GUI_STACK_DEPTH, NULL, kAppConst__PRIORITY_VERY_IMPORTANT, &self->task_refreash);
+    self->lock = xSemaphoreCreateRecursiveMutexStatic( &self->lock_buffer);
+    
 
     if( self->task_refreash==NULL ){
         return 1;
+    }
+
+    if( self->lock==NULL){
+        return 2;
     }
     
     return OK;
@@ -142,20 +152,18 @@ static void flush_cb(struct _lv_display_t *disp, const lv_area_t *area, uint8_t 
 
 
 /* Functions -----------------------------------------------------------------*/
-static int  request_function( TaskHandle_t from_whom ){
-
-
-    if( self->screen_owner==NULL || self->screen_owner==from_whom ){
-        return true;
+static int  request_function( void){
+    if( xSemaphoreTakeRecursive( self->lock, portMAX_DELAY)){
+        
+        return OK;
     }
 
-    return false;
+    return 1;
 }
 
-static void  yeild_function( TaskHandle_t from_whom){
-    if( self->screen_owner==from_whom ){
-        self->screen_owner = NULL;
-    }
+static int  yeild_function( void){
+    xSemaphoreGiveRecursive( self->lock);
+    return 0;
 }
 
 
