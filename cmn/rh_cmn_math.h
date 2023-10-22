@@ -17,5 +17,7 @@ u8 rh_cmn_math__zeller( u16 year, u8 month, u8 day);
 u8 rh_cmn_math__is_valid_date( u16 year, u8 month, u8 day);
 u8 rh_cmn_math__is_valid_time( u8 hour, u8 minute, u8 second);
 
-
+i16 rh_cmn_math__abs_angle_hour( u8 hour, u8 minute, u8 second);
+i16 rh_cmn_math__abs_angle_minute( u8 minute, u8 second);
+i16 rh_cmn_math__abs_angle_second( u8 second);
 #endif

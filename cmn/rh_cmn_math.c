@@ -65,7 +65,7 @@ u8 inline rh_cmn_math__is_valid_date( u16 year, u8 month, u8 day){
 }
 
 u8 inline rh_cmn_math__is_valid_time( u8 hour, u8 minute, u8 second){
-    return hour<24&&minute<60&&second<60;
+    return hour<60&&minute<60&&second<60;
 }
 
 /**
@@ -77,10 +77,6 @@ u8 inline rh_cmn_math__is_valid_time( u8 hour, u8 minute, u8 second){
  * @return  Return 1~7 the weekday
 */
 u8 inline rh_cmn_math__zeller( u16 year, u8 month, u8 day){
-    
-    
-    
-    
     u16 century = 0;
     if( month<=2){
         month    += 12;
@@ -94,4 +90,24 @@ u8 inline rh_cmn_math__zeller( u16 year, u8 month, u8 day){
     res = (res+7)%7;
 
     return res<2 ? res+6 : res-1;
+}
+
+
+
+
+i16 inline rh_cmn_math__abs_angle_hour( u8 hour, u8 minute, u8 second){
+    if( hour>=12){
+        return ((hour-12)*3600/12) + (minute*3600/(12*60)) + (second*3600/(12*60*60));
+    }else{
+        return ((hour   )*3600/12) + (minute*3600/(12*60)) + (second*3600/(12*60*60));
+    }
+}
+
+
+i16 inline rh_cmn_math__abs_angle_minute( u8 minute, u8 second){
+    return (minute*3600/60) + (second*3600/(60*60));
+}
+
+i16 inline rh_cmn_math__abs_angle_second( u8 second){
+    return (second*3600/60);
 }
