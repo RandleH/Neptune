@@ -70,9 +70,13 @@ typedef struct AppDisplyable{
     u32              frame_rate_ticks;
 
     struct{
-        TaskFunction_t    func;
+        TaskFunction_t    main_func;
+        TaskFunction_t    exit_func;
         TaskHandle_t      handle;
     } model, visual, ctrl;
+
+    // QueueHandle_t         queue_C_M;
+    // QueueHandle_t         queue_M_V;
 
 }AppDisplyable_t;
 
