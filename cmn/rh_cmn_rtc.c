@@ -1,18 +1,42 @@
+/**
+  ******************************************************************************
+  * @file    rh_cmn_rtc.c
+  * @author  RandleH
+  * @brief   Driver source code for RTC
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2022 RandleH.
+  * All rights reserved.
+  *
+  * This software component is licensed by RandleH under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
 
 
 
-
-
+/* Includes ------------------------------------------------------------------*/
 #include <string.h>
-
 #include "rh_cmn.h"
 
 
-
+/* Private define ------------------------------------------------------------*/
 #define self            (&g_CmnRtc)
 
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
+
+/* Exported functions --------------------------------------------------------*/
+
 /**
+ * @brief       RTC module initialization
  * @retval      0: success
  *              1: Invalid time stamp string pointer
  *              2: Invalid time data
@@ -136,7 +160,10 @@ const char* rh_cmn_rtc__report( void){
     return tmp;
 }
 
-
+/**
+ * @brief   Update rtc time & date information
+ * @warning Thread NOT safe
+*/
 void inline rh_cmn_rtc__update( void){
     HAL_RTC_GetTime( &self->hw_handle, &self->time, RTC_FORMAT_BIN);
     HAL_RTC_GetDate( &self->hw_handle, &self->date, RTC_FORMAT_BIN);
@@ -191,4 +218,13 @@ int rh_cmn_rtc__set( u16 year, u8 month, u8 day, u8 hour, u8 minute, u8 second){
 
 
 
+/* Exported variables --------------------------------------------------------*/
+
 CmnRtc_t g_CmnRtc;
+
+
+#ifdef __cplusplus
+}
+#endif
+
+/************************ (C) COPYRIGHT RandleH *****END OF FILE***************/
