@@ -2917,9 +2917,9 @@
                         "nid": -747793071,
                         "strtype": "_style/Bg_Color",
                         "intarray": [
-                          92,
-                          4,
-                          97,
+                          60,
+                          60,
+                          60,
                           255
                         ],
                         "InheritedType": 7
@@ -3657,8 +3657,8 @@
                 "flags": 17,
                 "strtype": "OBJECT/Size",
                 "intarray": [
-                  40,
-                  40
+                  48,
+                  48
                 ],
                 "InheritedType": 7
               },
@@ -3922,7 +3922,7 @@
                       {
                         "nid": 1394455706,
                         "strtype": "_style/Arc_Width",
-                        "integer": 4,
+                        "integer": 7,
                         "InheritedType": 6
                       }
                     ],
@@ -3946,9 +3946,9 @@
                         "nid": -711539845,
                         "strtype": "_style/Arc_Color",
                         "intarray": [
-                          91,
-                          255,
-                          64,
+                          177,
+                          177,
+                          177,
                           255
                         ],
                         "InheritedType": 7
@@ -3956,8 +3956,14 @@
                       {
                         "nid": -1924846423,
                         "strtype": "_style/Arc_Width",
-                        "integer": 4,
+                        "integer": 7,
                         "InheritedType": 6
+                      },
+                      {
+                        "nid": 823676394,
+                        "strtype": "_style/Arc_Rounded",
+                        "strval": "True",
+                        "InheritedType": 2
                       }
                     ],
                     "InheritedType": 1
@@ -6514,7 +6520,7 @@
     "theme_color2": 0,
     "exportFolderPath": "/Users/randleh/Desktop/Embedded-Watch/sqstudio",
     "projectExportFolderPath": "/Users/randleh/Desktop/Embedded-Watch/sqstudio",
-    "backup_cnt": 228,
+    "backup_cnt": 235,
     "autosave_cnt": 0,
     "lvgl_version": "8.3.3",
     "callfuncsexport": "C_FILE",
