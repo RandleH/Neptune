@@ -3946,9 +3946,9 @@
                         "nid": -711539845,
                         "strtype": "_style/Arc_Color",
                         "intarray": [
-                          177,
-                          177,
-                          177,
+                          71,
+                          192,
+                          19,
                           255
                         ],
                         "InheritedType": 7
@@ -4003,8 +4003,7 @@
                 "InheritedType": 11
               }
             ],
-            "saved_objtypeKey": "ARC",
-            "tree_closed": true
+            "saved_objtypeKey": "ARC"
           },
           {
             "guid": "GUID64671420-827513S7732289",
@@ -5165,7 +5164,7 @@
               {
                 "nid": -1362325635,
                 "strtype": "IMAGE/Rotation",
-                "integer": 1800,
+                "integer": 2250,
                 "InheritedType": 6
               },
               {
