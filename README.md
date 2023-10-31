@@ -12,7 +12,7 @@
 
 
 
-<p align="center"> <img src="doc/asset/rdme_clk_panel.png" alt="rdme_clk_panel" style="zoom:40%;" />  <img src="/Users/randleh/Desktop/Neptune/doc/asset/rdme_pcb_2d.png" alt="rdme_pcb_2d" style="zoom:43%;" /> </p>
+<p align="center"> <img src="doc/asset/rdme_clk_panel.png" alt="rdme_clk_panel" style="zoom:40%;" />  <img src="doc/asset/rdme_pcb_2d.png" alt="rdme_pcb_2d" style="zoom:43%;" /> </p>
 
 
 
